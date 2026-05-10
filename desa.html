@@ -191,16 +191,28 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;}
     window.FIREBASE_SLOT = _slot;
 
     // Sinkronisasi UID saat auth state berubah
+    // PENTING: onAuthStateChanged pertama kali dipanggil async ~1-2 detik setelah halaman load.
+    // Jangan redirect langsung saat user=null karena itu state sementara saat init.
+    let _authResolved = false;
     onAuthStateChanged(auth, (user) => {
       if (user) {
         _uid = user.uid;
         window.FIREBASE_UID = _uid;
         localStorage.setItem('reborn_uid', _uid);
+        _authResolved = true;
         console.log('[desa.html] Auth OK, UID:', _uid);
       } else {
-        // Tidak login → redirect ke index
-        console.warn('[desa.html] Tidak ada sesi login, redirect ke index.html');
-        window.location.href = 'index.html';
+        // Hanya redirect jika sudah resolved DAN tidak ada uid di localStorage
+        // (artinya benar-benar belum login, bukan sekadar init delay)
+        _authResolved = true;
+        const savedUid = localStorage.getItem('reborn_uid');
+        const savedChar = localStorage.getItem('reborn_charConfig');
+        if (!savedUid && !savedChar) {
+          console.warn('[desa.html] Tidak ada sesi login, redirect ke index.html');
+          window.location.href = 'index.html';
+        } else {
+          console.log('[desa.html] Auth null tapi ada data lokal, lanjut sebagai offline/guest');
+        }
       }
     });
 
@@ -1449,28 +1461,30 @@ window.startVillageScene = function() {
   const hasCharLocal = charConfig.name && charConfig.name !== 'Alex';
 
   if (!hasCharLocal) {
-    // Coba muat dari Firebase (fallback jika localStorage kosong, mis. browser baru)
-    console.log('[desa.html] localStorage kosong, mencoba Firebase...');
+    // Coba muat dari Firebase setelah Auth selesai init (~1.5 detik)
+    console.log('[desa.html] localStorage kosong, menunggu Firebase Auth...');
     setTimeout(() => {
       if (window.loadCharFromFirebase) {
         window.loadCharFromFirebase((data) => {
           if (data && data.name) {
             applyChar(data);
-            // Simpan balik ke localStorage untuk akses cepat berikutnya
             localStorage.setItem('reborn_charConfig', JSON.stringify({ ...charConfig }));
             localStorage.setItem('reborn_inventory', JSON.stringify({
               gold: inventory.gold, equipped: inventory.equipped, items: inventory.items,
             }));
-            if (window.startVillageScene) startVillageScene();
+            // Refresh welcome notification
+            if (typeof notification !== 'undefined') {
+              notification = { text: 'Selamat datang, ' + charConfig.name + '!', timer: 180 };
+            }
+            console.log('[desa.html] Data dari Firebase berhasil dimuat:', charConfig.name);
           } else {
-            console.warn('[desa.html] Tidak ada data di Firebase, redirect ke index.html');
-            window.location.href = 'index.html';
+            // Tidak ada data → tetap di desa dengan default char, jangan redirect
+            console.warn('[desa.html] Tidak ada data Firebase, pakai karakter default');
           }
         });
-      } else {
-        window.location.href = 'index.html';
       }
-    }, 1500); // tunggu Firebase Auth selesai init
+      // JANGAN redirect ke index.html dari sini — biarkan onAuthStateChanged yang handle
+    }, 1800);
   }
 })();
 
@@ -4536,9 +4550,6 @@ function gameLoop(ts){
   requestAnimationFrame(gameLoop);
 }
 
-initDeath();createMobileControls();cam.x=0;cam.y=0;requestAnimationFrame(gameLoop);
-</script>
-
 // ===================== FIREBASE VILLAGE HOOKS =====================
 // Broadcast position every second
 let _fbBroadcastTick = 0;
@@ -4653,7 +4664,6 @@ window.addEventListener('popstate', () => {
 });
 
 // ===================== START =====================
-// Start directly in village (skip death/void/reborn cutscenes)
 scene = SCENES.VILLAGE;
 startVillageScene();
 createMobileControls();
