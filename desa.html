@@ -154,11 +154,13 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;}
   <div class="ov-body" id="ovBody"></div>
 </div>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase SDK — dengan Auth agar data tersimpan ke akun yang benar -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getDatabase, ref, set, onValue, serverTimestamp }
+    import { getDatabase, ref, set, get, onValue }
       from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+    import { getAuth, onAuthStateChanged }
+      from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyC01ssDQCYgDiv28h_aPFqo5-rkylMUqZg",
@@ -171,24 +173,67 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;}
       measurementId: "G-MKM50NDL2B"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db  = getDatabase(app);
+    const app  = initializeApp(firebaseConfig);
+    const db   = getDatabase(app);
+    const auth = getAuth(app);
 
+    // sessionId untuk presence di desa (unik per akun+slot)
     const sessionId = localStorage.getItem('reborn_session_id') ||
       ('player_' + Date.now() + '_' + Math.floor(Math.random()*9999));
     localStorage.setItem('reborn_session_id', sessionId);
     window.FIREBASE_SESSION_ID = sessionId;
     window.FIREBASE_DB = db;
 
-    window.saveGameStateToFirebase = function(state) {
-      set(ref(db, 'players/' + sessionId + '/state'), { ...state, lastSeen: Date.now() });
+    // UID dan slot aktif
+    let _uid  = localStorage.getItem('reborn_uid')  || null;
+    let _slot = parseInt(localStorage.getItem('reborn_slot') || '0');
+    window.FIREBASE_UID  = _uid;
+    window.FIREBASE_SLOT = _slot;
+
+    // Sinkronisasi UID saat auth state berubah
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        _uid = user.uid;
+        window.FIREBASE_UID = _uid;
+        localStorage.setItem('reborn_uid', _uid);
+        console.log('[desa.html] Auth OK, UID:', _uid);
+      } else {
+        // Tidak login → redirect ke index
+        console.warn('[desa.html] Tidak ada sesi login, redirect ke index.html');
+        window.location.href = 'index.html';
+      }
+    });
+
+    // ── SAVE ke accounts/${uid}/characters/${slot} ──────────────────────────
+    window.saveCharToFirebase = function(charData) {
+      if (!_uid) return;
+      const slot = parseInt(localStorage.getItem('reborn_slot') || '0');
+      set(ref(db, \`accounts/\${_uid}/characters/\${slot}\`), {
+        ...charData,
+        slot,
+        lastSaved: Date.now(),
+      }).then(() => console.log('[desa.html] Tersimpan ke Firebase accounts/', _uid, 'slot', slot))
+        .catch(e => console.warn('[desa.html] Gagal simpan Firebase:', e));
     };
 
-    // Broadcast this player's position to village
+    // ── LOAD dari accounts/${uid}/characters/${slot} (jika localStorage kosong) ──
+    window.loadCharFromFirebase = function(callback) {
+      if (!_uid) return;
+      const slot = parseInt(localStorage.getItem('reborn_slot') || '0');
+      get(ref(db, \`accounts/\${_uid}/characters/\${slot}\`)).then(snap => {
+        if (snap.exists()) {
+          callback(snap.val());
+          console.log('[desa.html] Data dimuat dari Firebase slot', slot);
+        }
+      }).catch(e => console.warn('[desa.html] Gagal load Firebase:', e));
+    };
+
+    // ── PRESENCE di desa ────────────────────────────────────────────────────
     window.broadcastPresence = function(px, py, charCfg) {
       set(ref(db, 'village/players/' + sessionId), {
         x: Math.floor(px / 32), y: Math.floor(py / 32),
         px: Math.floor(px), py: Math.floor(py),
+        uid: _uid || 'guest',
         name: charCfg.name,
         gender: charCfg.gender,
         skinTone: charCfg.skinTone,
@@ -201,7 +246,7 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;}
       });
     };
 
-    // Listen for other online players
+    // ── LISTEN pemain lain di desa ───────────────────────────────────────────
     window.otherPlayers = {};
     window.listenOtherPlayers = function() {
       onValue(ref(db, 'village/players'), (snapshot) => {
@@ -216,12 +261,12 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;}
       });
     };
 
-    // Mark player offline on page leave
+    // ── Tandai offline saat keluar ───────────────────────────────────────────
     window.addEventListener('beforeunload', () => {
       set(ref(db, 'village/players/' + sessionId + '/online'), false);
     });
 
-    console.log('[Firebase Village] Connected. Session:', sessionId);
+    console.log('[Firebase Village] Initialized. UID:', _uid, 'Slot:', _slot);
   </script>
 <script>
 // ===================== CORE =====================
@@ -1363,52 +1408,69 @@ window.startVillageScene = function() {
   if (window.listenOtherPlayers) window.listenOtherPlayers();
 };
 
-// Load charConfig from localStorage (set by karakter.html)
+// Load charConfig dari localStorage dan/atau Firebase
+// Prioritas: reborn_charConfig (localStorage) > reborn_save_new_char > Firebase accounts/${uid}
 (function loadCharFromStorage() {
-  // Coba load dari reborn_charConfig (ditulis oleh karakter.html setelah selesai buat karakter)
-  const savedChar = localStorage.getItem('reborn_charConfig');
-  const savedInv  = localStorage.getItem('reborn_inventory');
-
-  // Fallback: coba dari reborn_save_new_char jika reborn_charConfig belum ada
+  const savedChar  = localStorage.getItem('reborn_charConfig');
+  const savedInv   = localStorage.getItem('reborn_inventory');
   const newCharRaw = localStorage.getItem('reborn_save_new_char');
 
+  function applyChar(parsed) {
+    const { gold, equipped, items, hp, maxHp, level, slot, lastSaved, ...charFields } = parsed;
+    Object.assign(charConfig, charFields);
+    if (gold      !== undefined) inventory.gold     = gold;
+    if (equipped)                inventory.equipped  = equipped;
+    if (items)                   inventory.items     = items;
+    if (hp)                      vPlayer.hp          = hp;
+    if (maxHp)                   vPlayer.maxHp       = maxHp;
+    if (level)                   charConfig.level    = level;
+    // Update welcome message jika sudah ada
+    if (notification && charConfig.name) {
+      notification.text = 'Selamat datang, ' + charConfig.name + '!';
+    }
+    console.log('[desa.html] Karakter dimuat:', charConfig.name);
+  }
+
   if (savedChar) {
-    try {
-      const parsed = JSON.parse(savedChar);
-      Object.assign(charConfig, parsed);
-      console.log('[desa.html] charConfig loaded from reborn_charConfig:', charConfig.name);
-    } catch(e) { console.warn('[desa.html] gagal parse reborn_charConfig', e); }
+    try { applyChar(JSON.parse(savedChar)); } catch(e) {}
   } else if (newCharRaw) {
-    try {
-      const parsed = JSON.parse(newCharRaw);
-      // reborn_save_new_char berisi charConfig + inventory sekaligus
-      const { gold, equipped, items, hp, maxHp, level, slot, lastSaved, ...charFields } = parsed;
-      Object.assign(charConfig, charFields);
-      if (gold !== undefined) inventory.gold = gold;
-      if (equipped) inventory.equipped = equipped;
-      if (items) inventory.items = items;
-      if (hp) vPlayer.hp = hp;
-      if (maxHp) vPlayer.maxHp = maxHp;
-      console.log('[desa.html] charConfig loaded from reborn_save_new_char:', charConfig.name);
-    } catch(e) { console.warn('[desa.html] gagal parse reborn_save_new_char', e); }
+    try { applyChar(JSON.parse(newCharRaw)); } catch(e) {}
   }
 
   if (savedInv) {
     try {
       const inv = JSON.parse(savedInv);
-      if (inv.gold !== undefined) inventory.gold = inv.gold;
-      if (inv.equipped) inventory.equipped = inv.equipped;
-      if (inv.items) inventory.items = inv.items;
+      if (inv.gold      !== undefined) inventory.gold     = inv.gold;
+      if (inv.equipped)                inventory.equipped  = inv.equipped;
+      if (inv.items)                   inventory.items     = inv.items;
     } catch(e) {}
   }
 
-  // Jika benar-benar tidak ada karakter tersimpan, redirect ke karakter.html
-  const hasChar = charConfig.name && charConfig.name !== 'Alex';
-  const hasStorage = savedChar || newCharRaw;
-  if (!hasChar && !hasStorage) {
-    console.warn('[desa.html] Tidak ada karakter tersimpan, redirect ke karakter.html');
-    const goBack = confirm('Belum ada karakter. Buat karakter dulu?');
-    if (goBack) window.location.href = 'karakter.html';
+  const hasCharLocal = charConfig.name && charConfig.name !== 'Alex';
+
+  if (!hasCharLocal) {
+    // Coba muat dari Firebase (fallback jika localStorage kosong, mis. browser baru)
+    console.log('[desa.html] localStorage kosong, mencoba Firebase...');
+    setTimeout(() => {
+      if (window.loadCharFromFirebase) {
+        window.loadCharFromFirebase((data) => {
+          if (data && data.name) {
+            applyChar(data);
+            // Simpan balik ke localStorage untuk akses cepat berikutnya
+            localStorage.setItem('reborn_charConfig', JSON.stringify({ ...charConfig }));
+            localStorage.setItem('reborn_inventory', JSON.stringify({
+              gold: inventory.gold, equipped: inventory.equipped, items: inventory.items,
+            }));
+            if (window.startVillageScene) startVillageScene();
+          } else {
+            console.warn('[desa.html] Tidak ada data di Firebase, redirect ke index.html');
+            window.location.href = 'index.html';
+          }
+        });
+      } else {
+        window.location.href = 'index.html';
+      }
+    }, 1500); // tunggu Firebase Auth selesai init
   }
 })();
 
@@ -4550,21 +4612,24 @@ function saveStateToLocal() {
     maxHp: vPlayer.maxHp,
     level: charConfig.level || 1,
     lastSaved: Date.now(),
-    // keep char appearance
     ...charConfig,
     slot,
   };
-  localStorage.setItem('reborn_save_state', JSON.stringify(state));
+  // Simpan ke localStorage (untuk index.html dan reload cepat)
+  localStorage.setItem('reborn_save_state',      JSON.stringify(state));
   localStorage.setItem('reborn_save_state_slot', String(slot));
-  // Also update charConfig cache
-  localStorage.setItem('reborn_charConfig', JSON.stringify({ ...charConfig }));
-  localStorage.setItem('reborn_inventory', JSON.stringify({
+  localStorage.setItem('reborn_charConfig',      JSON.stringify({ ...charConfig }));
+  localStorage.setItem('reborn_inventory',       JSON.stringify({
     gold: inventory.gold, equipped: inventory.equipped, items: inventory.items,
   }));
+  // Simpan juga langsung ke Firebase accounts/${uid}/characters/${slot}
+  if (window.saveCharToFirebase) {
+    window.saveCharToFirebase(state);
+  }
 }
 
-// Auto-save every 60 seconds
-setInterval(saveStateToLocal, 60000);
+// Auto-save setiap 30 detik ke localStorage + Firebase
+setInterval(saveStateToLocal, 30000);
 
 // Save on page hide/unload
 window.addEventListener('visibilitychange', () => {
@@ -4572,15 +4637,19 @@ window.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('beforeunload', saveStateToLocal);
 
-// Press Escape to go back to index.html (character select)
+// Escape / tombol back → simpan progress lalu kembali ke index.html
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && scene === SCENES.VILLAGE && !overlayOpen) {
     if (confirm('Kembali ke menu utama? Progress akan disimpan.')) {
-      saveStateToLocal();
+      saveStateToLocal(); // simpan localStorage + Firebase
       stopVillageBGM(); stopIndoorBGM();
-      window.location.href = 'index.html';
+      setTimeout(() => { window.location.href = 'index.html'; }, 400);
     }
   }
+});
+// Tombol kembali di mobile (back button)
+window.addEventListener('popstate', () => {
+  saveStateToLocal();
 });
 
 // ===================== START =====================
