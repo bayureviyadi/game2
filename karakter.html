@@ -1400,26 +1400,26 @@ setInterval(() => {
   }
 }, 30000);
 
-// Try loading saved character on start
-(function tryLoadSave() {
-  if (window.loadFromFirebase) {
-    window.loadFromFirebase((data) => {
-      if (data?.character?.name) {
-        Object.assign(charConfig, data.character);
-        console.log('[Firebase] Character loaded:', charConfig.name);
-      }
-      if (data?.state) {
-        if (data.state.gold) inventory.gold = data.state.gold;
-        if (data.state.equipped) inventory.equipped = data.state.equipped;
-        if (data.state.hp) vPlayer.hp = data.state.hp;
-      }
-    });
+// ===================== FIX: STUB untuk variabel yang hanya ada di desa.html =====================
+// vPlayer dibutuhkan oleh beberapa referensi di file ini (Firebase save, dll)
+var vPlayer = { hp: 100, maxHp: 100, px: 0, py: 0, vx: 0, vy: 0 };
+// notification stub
+var notification = null;
+// gameLoop stub — loop sesungguhnya ada di desa.html
+function gameLoop() {}
+
+// ===================== FIX: Baca slot dari URL parameter (?slot=N) =====================
+(function readSlotFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  const slotFromURL = params.get('slot');
+  if (slotFromURL !== null) {
+    localStorage.setItem('reborn_new_char_slot', slotFromURL);
+    console.log('[karakter.html] Slot dari URL:', slotFromURL);
   }
 })();
 
 // ===================== VILLAGE MODULE LOADER =====================
-// After character creation: save to Firebase via index.html, then go to desa
-const _origStartVillage = startVillageScene;
+// Setelah pembuatan karakter: simpan ke localStorage lalu redirect ke desa.html
 window.startVillageScene = function() {
   const slot = parseInt(localStorage.getItem('reborn_new_char_slot') || '0');
   const charData = {
@@ -1428,15 +1428,13 @@ window.startVillageScene = function() {
     gold: inventory.gold,
     equipped: inventory.equipped,
     items: inventory.items,
-    hp: vPlayer.hp,
-    maxHp: vPlayer.maxHp,
+    hp: 100,
+    maxHp: 100,
     level: 1,
     lastSaved: Date.now(),
   };
-  // Signal index.html to save the new character to Firebase when we return
-  localStorage.setItem('reborn_save_new_char', JSON.stringify(charData));
-  localStorage.setItem('reborn_save_new_char_slot', String(slot));
-  // Also set quick-load keys for desa.html
+
+  // Simpan data lengkap karakter untuk desa.html
   localStorage.setItem('reborn_charConfig', JSON.stringify(charConfig));
   localStorage.setItem('reborn_inventory', JSON.stringify({
     gold: inventory.gold,
@@ -1444,12 +1442,49 @@ window.startVillageScene = function() {
     items: inventory.items,
   }));
   localStorage.setItem('reborn_slot', String(slot));
-  // Navigate directly to village
+
+  // Simpan juga untuk index.html (slot select screen)
+  localStorage.setItem('reborn_save_new_char', JSON.stringify(charData));
+  localStorage.setItem('reborn_save_new_char_slot', String(slot));
+
+  // Simpan ke Firebase jika tersedia
+  if (window.saveCharacterToFirebase) {
+    window.saveCharacterToFirebase({ ...charConfig, slot });
+  }
+
+  console.log('[karakter.html] Karakter disimpan, pindah ke desa.html. Slot:', slot, 'Nama:', charConfig.name);
   window.location.href = 'desa.html';
 };
 
-initDeath();
-requestAnimationFrame(gameLoop);
+// ===================== MULAI: Cek apakah slot baru atau kembali dari index =====================
+(function initKarakter() {
+  const params = new URLSearchParams(window.location.search);
+  const slotParam = params.get('slot');
+
+  if (slotParam !== null) {
+    // Dibuka dari index.html untuk buat karakter baru di slot ini
+    // Langsung tampilkan layar pembuatan karakter (skip death cinematic)
+    console.log('[karakter.html] Mode: buat karakter baru di slot', slotParam);
+    showCustomScreen();
+  } else {
+    // Dibuka tanpa parameter — jalankan death cinematic normal
+    console.log('[karakter.html] Mode: death cinematic');
+    initDeath();
+    (function loop(ts) {
+      const dt = Math.min((ts - (loop._last || ts)) / 1000, 0.05);
+      loop._last = ts;
+      tick++;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      switch(scene) {
+        case SCENES.DEATH:   updateDeath(); renderDeath(); break;
+        case SCENES.VOID:    updateVoid();  renderVoid();  break;
+        case SCENES.REBORN:  updateReborn();renderReborn();break;
+      }
+      updateP(dt);
+      requestAnimationFrame(loop);
+    })(0);
+  }
+})();
 </script>
 </body>
 </html>

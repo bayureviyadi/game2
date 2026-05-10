@@ -1365,13 +1365,34 @@ window.startVillageScene = function() {
 
 // Load charConfig from localStorage (set by karakter.html)
 (function loadCharFromStorage() {
+  // Coba load dari reborn_charConfig (ditulis oleh karakter.html setelah selesai buat karakter)
   const savedChar = localStorage.getItem('reborn_charConfig');
   const savedInv  = localStorage.getItem('reborn_inventory');
+
+  // Fallback: coba dari reborn_save_new_char jika reborn_charConfig belum ada
+  const newCharRaw = localStorage.getItem('reborn_save_new_char');
+
   if (savedChar) {
     try {
-      Object.assign(charConfig, JSON.parse(savedChar));
-    } catch(e) {}
+      const parsed = JSON.parse(savedChar);
+      Object.assign(charConfig, parsed);
+      console.log('[desa.html] charConfig loaded from reborn_charConfig:', charConfig.name);
+    } catch(e) { console.warn('[desa.html] gagal parse reborn_charConfig', e); }
+  } else if (newCharRaw) {
+    try {
+      const parsed = JSON.parse(newCharRaw);
+      // reborn_save_new_char berisi charConfig + inventory sekaligus
+      const { gold, equipped, items, hp, maxHp, level, slot, lastSaved, ...charFields } = parsed;
+      Object.assign(charConfig, charFields);
+      if (gold !== undefined) inventory.gold = gold;
+      if (equipped) inventory.equipped = equipped;
+      if (items) inventory.items = items;
+      if (hp) vPlayer.hp = hp;
+      if (maxHp) vPlayer.maxHp = maxHp;
+      console.log('[desa.html] charConfig loaded from reborn_save_new_char:', charConfig.name);
+    } catch(e) { console.warn('[desa.html] gagal parse reborn_save_new_char', e); }
   }
+
   if (savedInv) {
     try {
       const inv = JSON.parse(savedInv);
@@ -1380,8 +1401,12 @@ window.startVillageScene = function() {
       if (inv.items) inventory.items = inv.items;
     } catch(e) {}
   }
-  // If no saved char, redirect back to karakter.html
-  if (!charConfig.name || charConfig.name === 'Alex' && !savedChar) {
+
+  // Jika benar-benar tidak ada karakter tersimpan, redirect ke karakter.html
+  const hasChar = charConfig.name && charConfig.name !== 'Alex';
+  const hasStorage = savedChar || newCharRaw;
+  if (!hasChar && !hasStorage) {
+    console.warn('[desa.html] Tidak ada karakter tersimpan, redirect ke karakter.html');
     const goBack = confirm('Belum ada karakter. Buat karakter dulu?');
     if (goBack) window.location.href = 'karakter.html';
   }
