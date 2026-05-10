@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>REBORN: Another World</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:none;}
+body{font-family:'Press Start 2P',monospace;cursor:none;}
+#gameContainer{position:relative;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;}
+canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;}
+#cursor{position:fixed;width:12px;height:12px;background:#fff;pointer-events:none;z-index:9999;box-shadow:0 0 8px #fff,0 0 20px #88ffcc;transform:translate(-50%,-50%);}
+#scanlines{position:fixed;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.08) 2px,rgba(0,0,0,.08) 4px);pointer-events:none;z-index:200;}
+#vignette{position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,.6) 100%);pointer-events:none;z-index:201;}
+
+/* WEAPON ARSENAL STYLES */
+.weap-rarity-stripe{height:2px;width:100%;display:block;}
+#weapGrid::-webkit-scrollbar{display:none;}
+#weapDetail::-webkit-scrollbar{display:none;}
+
+#customScreen{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.97);z-index:500;display:none;flex-direction:column;align-items:center;overflow:hidden;font-family:'Press Start 2P',monospace;}
+#customScreen.active{display:flex;}
+.cs-header{width:100%;padding:12px 16px 8px;border-bottom:2px solid #1a4433;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;}
+.cs-title{font-size:9px;color:#88ffcc;letter-spacing:2px;text-shadow:0 0 10px #88ffcc66;}
+.cs-step-badge{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:7px;color:#445544;}
+.cs-tabs{display:flex;width:100%;border-bottom:1px solid #1a3322;flex-shrink:0;overflow-x:auto;}
+.cs-tabs::-webkit-scrollbar{display:none;}
+.cs-tab{flex:1;min-width:60px;padding:10px 4px;text-align:center;font-size:6px;color:#446644;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;}
+.cs-tab.active{color:#88ffcc;border-bottom-color:#88ffcc;}
+.cs-tab-icon{font-size:14px;display:block;margin-bottom:3px;}
+.cs-preview{display:flex;flex-direction:column;align-items:center;padding:12px 16px 8px;flex-shrink:0;}
+.cs-preview-canvas-wrap{width:100px;height:130px;border:2px solid #1a4433;background:#0a1a0f;display:flex;align-items:center;justify-content:center;}
+#previewCanvas{image-rendering:pixelated;display:block;}
+.cs-name-display{margin-top:8px;font-size:7px;color:#88ffcc;text-align:center;min-height:14px;letter-spacing:1px;}
+.cs-panel{flex:1;width:100%;overflow-y:auto;padding:12px 16px 80px;}
+.cs-panel::-webkit-scrollbar{display:none;}
+.cs-section-label{font-size:6px;color:#446655;margin-bottom:8px;letter-spacing:1px;}
+.cs-gender-row{display:flex;gap:8px;margin-bottom:16px;}
+.cs-gender-btn{flex:1;padding:14px 8px;border:2px solid #224433;background:#0a1a0f;color:#446644;font-size:7px;font-family:'Press Start 2P',monospace;cursor:pointer;text-align:center;line-height:1.8;}
+.cs-gender-btn.active{border-color:#88ffcc;color:#88ffcc;background:#0a2a1a;}
+.cs-gender-btn .g-icon{font-size:22px;display:block;margin-bottom:4px;}
+.cs-name-wrap{margin-bottom:16px;}
+.cs-name-input{width:100%;padding:12px;background:#0a1a0f;border:2px solid #224433;color:#88ffcc;font-size:8px;font-family:'Press Start 2P',monospace;outline:none;caret-color:#88ffcc;}
+.cs-name-input:focus{border-color:#55aa77;}
+.cs-name-input::placeholder{color:#334433;}
+.cs-name-counter{text-align:right;font-size:6px;color:#334433;margin-top:4px;}
+.cs-palette{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
+.cs-color-swatch{width:36px;height:36px;border:2px solid transparent;cursor:pointer;transition:transform .1s;flex-shrink:0;}
+.cs-color-swatch.active{border-color:#88ffcc;transform:scale(1.1);}
+.cs-color-swatch.dark-check.active{border-color:#fff;}
+.cs-option-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;}
+.cs-option-btn{aspect-ratio:1;background:#0a1a0f;border:2px solid #1a3322;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:4px;}
+.cs-option-btn.active{border-color:#88ffcc;background:#0a2a18;}
+.cs-option-btn canvas{image-rendering:pixelated;display:block;}
+.cs-action-bar{position:fixed;bottom:0;left:0;right:0;display:flex;z-index:600;border-top:2px solid #1a4433;background:#04080a;}
+.cs-btn-prev{flex:1;padding:16px 8px;background:#0a1208;border:none;border-right:1px solid #1a3322;color:#446644;font-size:7px;font-family:'Press Start 2P',monospace;cursor:pointer;}
+.cs-btn-next{flex:2;padding:16px 8px;background:#0a2018;border:none;color:#88ffcc;font-size:7px;font-family:'Press Start 2P',monospace;cursor:pointer;position:relative;overflow:hidden;}
+.cs-btn-next::after{content:'';position:absolute;top:0;left:-100%;width:40%;height:100%;background:linear-gradient(90deg,transparent,rgba(136,255,204,.1),transparent);animation:shimmer 2s infinite;}
+@keyframes shimmer{to{left:200%;}}
+.cs-btn-next.confirm{background:#0a3020;border:2px solid #55cc88;}
+
+/* INVENTORY / WARDROBE OVERLAY */
+#overlayScreen{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,.96);
+  z-index:600;
+  display:none;
+  flex-direction:column;
+  font-family:'Press Start 2P',monospace;
+}
+#overlayScreen.active{display:flex;}
+.ov-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:2px solid #1a4433;flex-shrink:0;}
+.ov-title{font-size:9px;color:#88ffcc;letter-spacing:2px;}
+.ov-close{background:none;border:1px solid #446644;color:#88ffcc;font-size:8px;font-family:'Press Start 2P',monospace;padding:6px 10px;cursor:pointer;}
+.ov-tabs{display:flex;border-bottom:1px solid #1a3322;flex-shrink:0;}
+.ov-tab{flex:1;padding:10px 4px;text-align:center;font-size:7px;color:#446644;cursor:pointer;border-bottom:2px solid transparent;}
+.ov-tab.active{color:#88ffcc;border-bottom-color:#88ffcc;}
+.ov-body{flex:1;overflow:hidden;display:flex;gap:0;}
+/* Inventory panel */
+.inv-grid{flex:1;padding:10px;overflow-y:auto;display:grid;grid-template-columns:repeat(5,1fr);gap:6px;align-content:start;}
+.inv-grid::-webkit-scrollbar{display:none;}
+.inv-slot{aspect-ratio:1;background:#0a1208;border:2px solid #1a3322;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;padding:3px;}
+.inv-slot.has-item{border-color:#334433;}
+.inv-slot.selected{border-color:#88ffcc;background:#0a2a18;}
+.inv-slot.equipped{border-color:#ffcc44;background:#1a1a08;}
+.inv-slot .slot-icon{font-size:18px;line-height:1;}
+.inv-slot .slot-name{font-size:4px;color:#557755;margin-top:2px;text-align:center;line-height:1.3;}
+.inv-slot .slot-qty{position:absolute;bottom:2px;right:3px;font-size:4px;color:#88ffcc;}
+.inv-slot .slot-eq{position:absolute;top:2px;left:2px;font-size:6px;}
+.inv-detail{width:160px;flex-shrink:0;padding:10px;border-left:1px solid #1a3322;display:flex;flex-direction:column;gap:8px;overflow-y:auto;}
+.inv-detail::-webkit-scrollbar{display:none;}
+.inv-det-icon{font-size:32px;text-align:center;}
+.inv-det-name{font-size:7px;color:#88ffcc;text-align:center;line-height:1.6;}
+.inv-det-type{font-size:5px;color:#446655;text-align:center;}
+.inv-det-desc{font-size:5px;color:#aaccaa;line-height:1.8;padding:4px;border:1px solid #1a3322;background:#050c08;}
+.inv-det-stats{font-size:5px;color:#88ffcc;line-height:2;}
+.inv-det-btn{padding:8px;background:#0a2018;border:1px solid #44aa66;color:#88ffcc;font-size:6px;font-family:'Press Start 2P',monospace;cursor:pointer;text-align:center;}
+.inv-det-btn:hover{background:#0a3020;}
+.inv-det-btn.red{border-color:#aa4433;color:#ff8877;background:#1a0a08;}
+/* Wardrobe panel */
+.ward-body{flex:1;display:flex;overflow:hidden;}
+.ward-preview{width:140px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:12px 8px;border-right:1px solid #1a3322;gap:6px;}
+.ward-canvas-wrap{width:90px;height:120px;border:2px solid #1a4433;background:#0a1a0f;display:flex;align-items:center;justify-content:center;}
+#wardCanvas{image-rendering:pixelated;}
+.ward-slots{display:grid;grid-template-columns:1fr 1fr;gap:4px;width:100%;}
+.ward-eq-slot{background:#0a1208;border:1px solid #1a3322;padding:4px;font-size:4px;color:#446655;text-align:center;cursor:pointer;min-height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;}
+.ward-eq-slot.has-item{border-color:#334433;color:#88ffcc;}
+.ward-eq-slot .ward-slot-icon{font-size:14px;}
+.ward-right{flex:1;overflow-y:auto;padding:8px;}
+.ward-right::-webkit-scrollbar{display:none;}
+.ward-category-label{font-size:6px;color:#446655;margin:8px 0 4px;letter-spacing:1px;}
+.ward-item-row{display:flex;align-items:center;gap:8px;padding:6px;border:1px solid #1a3322;background:#050c08;margin-bottom:4px;cursor:pointer;}
+.ward-item-row.selected{border-color:#88ffcc;background:#0a1a10;}
+.ward-item-row.equipped{border-color:#ffcc44;background:#0a0a00;}
+.ward-item-icon{font-size:18px;flex-shrink:0;}
+.ward-item-info{flex:1;}
+.ward-item-name{font-size:6px;color:#88ffcc;margin-bottom:3px;}
+.ward-item-stat{font-size:5px;color:#557755;}
+.ward-item-eq{font-size:5px;color:#ffcc44;}
+</style>
+</head>
+<body>
+<div id="gameContainer"><canvas id="gameCanvas"></canvas></div>
+<div id="scanlines"></div><div id="vignette"></div><div id="cursor"></div>
+
+<!-- CUSTOM SCREEN -->
+<div id="customScreen">
+  <div class="cs-header"><div class="cs-title">✦ BUAT KARAKTERMU ✦</div><div class="cs-step-badge" id="stepBadge">1/5</div></div>
+  <div class="cs-tabs">
+    <div class="cs-tab active" data-tab="identity" onclick="switchTab('identity')"><span class="cs-tab-icon">⚔</span>IDENTITAS</div>
+    <div class="cs-tab" data-tab="skin" onclick="switchTab('skin')"><span class="cs-tab-icon">◈</span>KULIT</div>
+    <div class="cs-tab" data-tab="hair" onclick="switchTab('hair')"><span class="cs-tab-icon">≋</span>RAMBUT</div>
+    <div class="cs-tab" data-tab="outfit" onclick="switchTab('outfit')"><span class="cs-tab-icon">▣</span>PAKAIAN</div>
+    <div class="cs-tab" data-tab="face" onclick="switchTab('face')"><span class="cs-tab-icon">◉</span>WAJAH</div>
+  </div>
+  <div class="cs-preview"><div class="cs-preview-canvas-wrap"><canvas id="previewCanvas" width="80" height="110"></canvas></div><div class="cs-name-display" id="nameDisplay">???</div></div>
+  <div class="cs-panel" id="csPanel"></div>
+  <div class="cs-action-bar"><button class="cs-btn-prev" onclick="prevTab()">◀ KEMBALI</button><button class="cs-btn-next" id="csNextBtn" onclick="nextTab()">LANJUT ▶</button></div>
+</div>
+
+<!-- INVENTORY / WARDROBE OVERLAY -->
+<div id="overlayScreen">
+  <div class="ov-header">
+    <div class="ov-title" id="ovTitle">✦ INVENTORI ✦</div>
+    <button class="ov-close" onclick="closeOverlay()">✕ TUTUP</button>
+  </div>
+  <div class="ov-tabs">
+    <div class="ov-tab active" onclick="switchOvTab('inventory')">📦 INVENTORI</div>
+    <div class="ov-tab" onclick="switchOvTab('wardrobe')">👕 LEMARI</div>
+    <div class="ov-tab" onclick="switchOvTab('weapons')">⚔ SENJATA</div>
+  </div>
+  <div class="ov-body" id="ovBody"></div>
+</div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue, serverTimestamp }
+      from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC01ssDQCYgDiv28h_aPFqo5-rkylMUqZg",
+      authDomain: "mmogame-e4035.firebaseapp.com",
+      databaseURL: "https://mmogame-e4035-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "mmogame-e4035",
+      storageBucket: "mmogame-e4035.firebasestorage.app",
+      messagingSenderId: "967874774427",
+      appId: "1:967874774427:web:6266749e28f8cfdff70d3e",
+      measurementId: "G-MKM50NDL2B"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getDatabase(app);
+
+    // Generate/load a stable session ID for this player
+    let sessionId = localStorage.getItem('reborn_session_id');
+    if (!sessionId) {
+      sessionId = 'player_' + Date.now() + '_' + Math.floor(Math.random()*9999);
+      localStorage.setItem('reborn_session_id', sessionId);
+    }
+    window.FIREBASE_SESSION_ID = sessionId;
+    window.FIREBASE_DB = db;
+    window.FIREBASE_REF = ref;
+    window.FIREBASE_SET = set;
+    window.FIREBASE_ON_VALUE = onValue;
+    window.FIREBASE_SERVER_TS = serverTimestamp;
+
+    // Save character data to Firebase
+    window.saveCharacterToFirebase = function(charData) {
+      const playerRef = ref(db, 'players/' + sessionId + '/character');
+      set(playerRef, {
+        ...charData,
+        lastSeen: Date.now()
+      });
+    };
+
+    // Save inventory/position to Firebase
+    window.saveGameStateToFirebase = function(state) {
+      const stateRef = ref(db, 'players/' + sessionId + '/state');
+      set(stateRef, {
+        ...state,
+        lastSeen: Date.now()
+      });
+    };
+
+    // Load saved character if exists
+    window.loadFromFirebase = function(callback) {
+      const playerRef = ref(db, 'players/' + sessionId);
+      onValue(playerRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) callback(data);
+      }, { onlyOnce: true });
+    };
+
+    // Broadcast player online presence to village
+    window.broadcastPresence = function(px, py, charConfig) {
+      const presRef = ref(db, 'village/players/' + sessionId);
+      set(presRef, {
+        x: Math.floor(px), y: Math.floor(py),
+        name: charConfig.name,
+        gender: charConfig.gender,
+        skinTone: charConfig.skinTone,
+        hairColor: charConfig.hairColor,
+        outfitColor: charConfig.outfitColor,
+        online: true,
+        lastSeen: Date.now()
+      });
+    };
+
+    // Listen for other players in the village
+    window.listenOtherPlayers = function(callback) {
+      const villageRef = ref(db, 'village/players');
+      onValue(villageRef, (snapshot) => {
+        const all = snapshot.val() || {};
+        const others = {};
+        const now = Date.now();
+        for (const [id, data] of Object.entries(all)) {
+          if (id !== sessionId && data.lastSeen && (now - data.lastSeen) < 30000) {
+            others[id] = data;
+          }
+        }
+        callback(others);
+      });
+    };
+
+    console.log('[Firebase] Connected. Session:', sessionId);
+  </script>
+<script>
+// ===================== CORE =====================
+const canvas=document.getElementById('gameCanvas'),ctx=canvas.getContext('2d');
+let lastTime=0,deltaTime=0;
+function resize(){const s=Math.min(window.innerWidth/480,window.innerHeight/320);canvas.width=480;canvas.height=320;canvas.style.width=Math.floor(480*s)+'px';canvas.style.height=Math.floor(320*s)+'px';}
+resize();window.addEventListener('resize',resize);
+const cursorEl=document.getElementById('cursor');
+window.addEventListener('mousemove',e=>{cursorEl.style.left=e.clientX+'px';cursorEl.style.top=e.clientY+'px';});
+
+// ===================== AUDIO =====================
+let audioCtx=null,isMuted=false,bgmInterval=null,indoorBgmInterval=null;
+function initAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+let _masterNode=null;
+function getMaster(){if(!audioCtx)return null;if(!_masterNode){_masterNode=audioCtx.createGain();_masterNode.gain.value=isMuted?0:0.18;_masterNode.connect(audioCtx.destination);}return _masterNode;}
+function playNote(freq,type='sine',dur=0.3,vol=0.12,delay=0){
+  if(!audioCtx||isMuted)return;const m=getMaster();const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type=type;o.frequency.value=freq;const t=audioCtx.currentTime+delay;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+0.01);g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  o.connect(g);g.connect(m);o.start(t);o.stop(t+dur+0.05);
+}
+const VS=[261.63,293.66,329.63,392,440,523.25,587.33,659.25];
+const VB=[65.41,73.42,82.41,98];
+const VM=[0,2,4,5,4,2,4,7,5,4,2,0,2,4,2,0,0,4,5,7,5,4,7,5,2,4,5,2,0,2,4,0];
+const VBP=[0,0,2,2,1,1,3,3,0,0,2,2,1,1,3,3,0,0,1,1,2,2,3,3,0,0,2,2,1,1,0,0];
+let bgmBeat=0;
+function startVillageBGM(){if(bgmInterval)return;initAudio();if(!audioCtx)return;bgmBeat=0;const beat=60/88;bgmInterval=setInterval(()=>{if(!audioCtx||isMuted)return;const b=bgmBeat%32;playNote(VS[VM[b]]*2,'triangle',beat*0.7,0.10);if(b%2===0){playNote(VB[VBP[b]],'triangle',beat*1.8,0.13);if(b%8===0){[[130.81,164.81,196],[146.83,185,220],[164.81,196,246.94],[123.47,155.56,185]][Math.floor(b/8)%4].forEach(f=>playNote(f,'sine',beat*7.5,0.035));}}bgmBeat++;},beat*1000);}
+function stopVillageBGM(){if(bgmInterval){clearInterval(bgmInterval);bgmInterval=null;}}
+let indoorBeat=0;
+const IS=[261.63,277.18,311.13,349.23,392,415.3,466.16,523.25];
+const IM=[0,2,4,6,4,2,0,1,2,4,6,7,6,4,2,0];
+function startIndoorBGM(){if(indoorBgmInterval)return;initAudio();if(!audioCtx)return;indoorBeat=0;const beat=60/60;indoorBgmInterval=setInterval(()=>{if(!audioCtx||isMuted)return;const b=indoorBeat%16;const f=IS[IM[b]];playNote(f,'sine',beat*1.8,0.07);if(b%4===0)playNote(f*0.5,'triangle',beat*3.5,0.055);if(b%8===0)[f*0.75,f,f*1.25].forEach(ff=>playNote(ff,'sine',beat*7,0.022));indoorBeat++;},beat*1000);}
+function stopIndoorBGM(){if(indoorBgmInterval){clearInterval(indoorBgmInterval);indoorBgmInterval=null;}}
+function sfxDoor(){if(!audioCtx||isMuted)return;[400,300,200].forEach((f,i)=>playNote(f,'triangle',0.15,0.08,i*0.08));}
+function sfxSelect(){if(!audioCtx||isMuted)return;playNote(660,'triangle',0.06,0.06);}
+function sfxEquip(){if(!audioCtx||isMuted)return;[440,550,660].forEach((f,i)=>playNote(f,'square',0.08,0.07,i*0.05));}
+function sfxStep(){if(!audioCtx||isMuted)return;playNote(120+Math.random()*60,'sine',0.04,0.03);}
+function sfxAttack(){if(!audioCtx||isMuted)return;playNote(180,'sawtooth',0.12,0.15);playNote(220,'square',0.08,0.08,0.05);}
+function toggleMute(){isMuted=!isMuted;if(_masterNode)_masterNode.gain.value=isMuted?0:0.18;}
+
+// ===================== GAME STATE =====================
+const SCENES={DEATH:'death',VOID:'void',REBORN:'reborn',VILLAGE:'village',INDOOR:'indoor'};
+let scene=SCENES.DEATH,tick=0;
+const keys={};
+window.addEventListener('keydown',e=>{
+  keys[e.key]=true;
+  if((e.key==='i'||e.key==='I')&&(scene===SCENES.VILLAGE||scene===SCENES.INDOOR)){openOverlay('inventory');}
+  if((e.key==='c'||e.key==='C')&&(scene===SCENES.VILLAGE||scene===SCENES.INDOOR)){openOverlay('wardrobe');}
+  if(e.key==='m'||e.key==='M'){toggleMute();}
+  if(e.key==='Escape'&&overlayOpen){closeOverlay();}
+  if((e.key==='h'||e.key==='H')&&(scene===SCENES.VILLAGE||scene===SCENES.INDOOR)){
+    if(weaponHolster==='hand') weaponHolster='hip';
+    else if(weaponHolster==='hip') weaponHolster='back';
+    else weaponHolster='hand';
+    notification={text:'⚔ SENJATA: '+(weaponHolster==='hand'?'DI TANGAN':weaponHolster==='hip'?'DI PINGGANG':'DI PUNGGUNG'),timer:60};
+  }
+});
+window.addEventListener('keyup',e=>{keys[e.key]=false;});
+
+function lerp(a,b,t){return a+(b-a)*t;}
+function clamp(v,mn,mx){return Math.max(mn,Math.min(mx,v));}
+// Global analog stick state (set by createMobileControls)
+let analogDx=0, analogDy=0, analogActive=false;
+// Weapon holster mode: 'hand'=held in hand (default), 'hip'=on hip/waist, 'back'=on back
+let weaponHolster='hand';
+function lerpColor(c1,c2,t){const r1=parseInt(c1.slice(1,3),16),g1=parseInt(c1.slice(3,5),16),b1=parseInt(c1.slice(5,7),16);const r2=parseInt(c2.slice(1,3),16),g2=parseInt(c2.slice(3,5),16),b2=parseInt(c2.slice(5,7),16);return `rgb(${Math.floor(lerp(r1,r2,t))},${Math.floor(lerp(g1,g2,t))},${Math.floor(lerp(b1,b2,t))})`;}
+function pixelText(t,x,y,size,color,align='left'){ctx.save();ctx.font=`${size}px "Press Start 2P"`;ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline='top';ctx.imageSmoothingEnabled=false;ctx.fillText(t,x,y);ctx.restore();}
+function drawRect(x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(Math.floor(x),Math.floor(y),Math.floor(w),Math.floor(h));}
+function noise(x,y,s){let n=Math.sin(x*127.1+y*311.7+s*17.3)*43758.5453;return n-Math.floor(n);}
+function blendColor(hex,amt){let r,g,b;if(hex.startsWith('#')){r=parseInt(hex.slice(1,3),16);g=parseInt(hex.slice(3,5),16);b=parseInt(hex.slice(5,7),16);}else{const m=hex.match(/\d+/g);if(!m)return hex;r=+m[0];g=+m[1];b=+m[2];}return `rgb(${clamp(r+amt,0,255)},${clamp(g+amt,0,255)},${clamp(b+amt,0,255)})`;}
+
+// Particles
+let particles=[];
+function spawnP(x,y,vx,vy,life,color,size=2){particles.push({x,y,vx,vy,life,maxLife:life,color,size});}
+
+// === PROJECTILE SYSTEM ===
+let projectiles=[];
+// Explosion effects list
+let explosions=[];
+
+function spawnProjectile(x,y,vx,vy,color,type='arrow'){
+  const angle=Math.atan2(vy,vx);
+  // Set lifetime based on type
+  const life = type==='rocket'?160 : type==='bullet'?100 : type==='stone'?120 : 140;
+  projectiles.push({x,y,vx,vy,color,type,angle,life,maxLife:life});
+}
+
+function spawnExplosion(x,y,color){
+  explosions.push({x,y,color,life:40,maxLife:40,r:4});
+}
+
+function updateProjectiles(dt){
+  projectiles=projectiles.filter(p=>p.life>0);
+  for(const p of projectiles){
+    p.x+=p.vx*(dt*60);
+    p.y+=p.vy*(dt*60);
+    p.life-=(dt*60);
+    // Gravity for stone/sling projectiles
+    if(p.type==='stone') p.vy+=0.04*(dt*60);
+    // Trail particles per type
+    if(p.type==='bullet'){if(Math.floor(p.life)%2===0)spawnP(p.x,p.y,0,0,4,p.color,1);}
+    else if(p.type==='rocket'){if(Math.floor(p.life)%2===0){spawnP(p.x,p.y,(Math.random()-.5)*1.5,(Math.random()-.5)*1.5,10,'#ff6600',3);spawnP(p.x,p.y,0,0,6,'#ffcc00',2);}}
+    else if(p.type==='stone'){if(Math.floor(p.life)%4===0)spawnP(p.x,p.y,0,0,5,'#aaaaaa',2);}
+    else{if(Math.floor(p.life)%3===0)spawnP(p.x,p.y,0,0,6,p.color,2);}
+  }
+  // Update explosions
+  explosions=explosions.filter(e=>e.life>0);
+  for(const e of explosions){
+    e.life-=(dt*60);
+    e.r+=1.2*(dt*60);
+    // Spawn fire+smoke particles
+    if(Math.random()<0.6*(dt*60)){spawnP(e.x+(Math.random()-.5)*e.r,e.y+(Math.random()-.5)*e.r,(Math.random()-.5)*3,-1-Math.random()*3,18,Math.random()<0.5?'#ff4400':'#ffaa00',3);}
+    if(Math.random()<0.4*(dt*60)){spawnP(e.x+(Math.random()-.5)*e.r*1.5,e.y+(Math.random()-.5)*e.r*1.5,(Math.random()-.5)*2,-0.5-Math.random()*2,22,'#555',3);}
+  }
+}
+
+function drawProjectiles(c,offX=0,offY=0){
+  // Draw explosions first (below projectiles)
+  for(const e of explosions){
+    const ex=Math.floor(e.x-offX), ey=Math.floor(e.y-offY);
+    const alpha=e.life/e.maxLife;
+    // Outer ring
+    c.globalAlpha=alpha*0.5;
+    c.fillStyle='#ff8800';
+    c.beginPath();c.arc(ex,ey,e.r,0,Math.PI*2);c.fill();
+    // Inner bright
+    c.globalAlpha=alpha*0.8;
+    c.fillStyle='#ffee00';
+    c.beginPath();c.arc(ex,ey,e.r*0.55,0,Math.PI*2);c.fill();
+    c.globalAlpha=alpha;
+    c.fillStyle='#ffffff';
+    c.beginPath();c.arc(ex,ey,e.r*0.2,0,Math.PI*2);c.fill();
+    c.globalAlpha=1;
+  }
+
+  for(const p of projectiles){
+    const x=Math.floor(p.x-offX), y=Math.floor(p.y-offY);
+    const drawAngle=Math.atan2(p.vy,p.vx);
+    c.save();
+    c.translate(x,y);
+    c.rotate(drawAngle);
+
+    if(p.type==='arrow'){
+      // Arrow — shaft (wood) + metal tip + colored fletching
+      c.fillStyle='#8B4513';
+      c.fillRect(-10,-1,18,2);
+      c.fillStyle='#cccccc';
+      c.fillRect(7,-2,6,4);
+      c.fillRect(10,-3,3,6);
+      c.fillStyle='#cc3322';
+      c.fillRect(-12,-3,4,2);
+      c.fillRect(-12,1,4,2);
+      c.fillStyle='#eeeeee';
+      c.fillRect(-12,-1,4,2);
+    } else if(p.type==='bolt'){
+      // Crossbow bolt — shorter, thicker, darker
+      c.fillStyle='#5a3a1a';
+      c.fillRect(-7,-1,14,2);
+      // Metal tip
+      c.fillStyle='#999';
+      c.fillRect(6,-2,5,4);
+      c.fillRect(8,-3,3,6);
+      // Bolt flights (smaller, stiffer)
+      c.fillStyle='#888';
+      c.fillRect(-8,-3,3,2);
+      c.fillRect(-8,1,3,2);
+      c.fillStyle='#aaa';
+      c.fillRect(-8,-1,3,2);
+    } else if(p.type==='bullet'){
+      // Bullet — brass casing + lead tip
+      c.fillStyle='#c8a040';
+      c.fillRect(-5,-2,9,4);
+      // Lead nose
+      c.fillStyle='#aaa';
+      c.fillRect(3,-1,4,2);
+      c.fillRect(4,-2,2,4);
+      // Primer at base
+      c.fillStyle='#885500';
+      c.fillRect(-6,-1,2,2);
+      // Glow tint
+      c.globalAlpha=0.3;
+      c.fillStyle=p.color;
+      c.fillRect(-5,-2,11,4);
+      c.globalAlpha=1;
+    } else if(p.type==='stone'){
+      // Sling stone — rough round rock
+      c.fillStyle='#888';
+      c.fillRect(-3,-3,6,6);
+      c.fillStyle='#aaa';
+      c.fillRect(-2,-3,3,2);
+      c.fillStyle='#666';
+      c.fillRect(1,1,2,2);
+    } else if(p.type==='rocket'){
+      // Rocket/RPG — elongated body with exhaust
+      c.fillStyle='#555';
+      c.fillRect(-14,-3,22,6);
+      // Nose cone
+      c.fillStyle='#cc4433';
+      c.fillRect(7,-2,6,4);
+      c.fillRect(9,-3,4,6);
+      // Stabilizer fins
+      c.fillStyle='#777';
+      c.fillRect(-14,-5,5,4);
+      c.fillRect(-14,1,5,4);
+      // Exhaust glow
+      c.globalAlpha=0.8;
+      c.fillStyle='#ff6600';
+      c.fillRect(-16,-2,4,4);
+      c.globalAlpha=0.4;
+      c.fillStyle='#ffcc00';
+      c.fillRect(-18,-1,3,2);
+      c.globalAlpha=1;
+    }
+    c.restore();
+  }
+}
+function updateP(dt){
+  const pc = (typeof ictx!=='undefined'&&scene===SCENES.INDOOR) ? ictx : ctx;
+  particles=particles.filter(p=>p.life>0);
+  for(let p of particles){
+    p.x+=p.vx*(dt*60);p.y+=p.vy*(dt*60);p.vy+=0.02*(dt*60);p.vx*=Math.pow(0.98,dt*60);p.life-=(dt*60);
+    pc.globalAlpha=Math.max(0,p.life/p.maxLife);
+    pc.fillStyle=p.color;pc.fillRect(Math.floor(p.x),Math.floor(p.y),p.size,p.size);
+    pc.globalAlpha=1;
+  }
+}
+
+const stars=Array.from({length:120},(_,i)=>({x:noise(i,0,1)*480,y:noise(i,0,2)*320,bright:noise(i,0,3),ts:.02+noise(i,0,4)*.04,size:noise(i,0,5)<.85?1:2}));
+function drawStars(a=1){for(let s of stars){const tw=(Math.sin(tick*s.ts+s.bright*10)+1)*.5;ctx.globalAlpha=(0.3+tw*.7)*a;drawRect(Math.floor(s.x),Math.floor(s.y),s.size,s.size,'#fff');}ctx.globalAlpha=1;}
+
+// ===================== CHAR CONFIG =====================
+const charConfig={gender:'male',name:'Alex',skinTone:'#e8a87c',hairStyle:0,hairColor:'#6b3a1a',outfitStyle:0,outfitColor:'#3a6a2a',faceStyle:0,shoeColor:'#eee',bodyType:0,eyeColor:'#44cc44'};
+const SKIN_TONES=['#fce4c8','#f5c89a','#e8a87c','#c87941','#a05c28','#7a3e1a','#4a2010'];
+const HAIR_COLORS=['#6b3a1a','#111','#3a2a1a','#7a4a1a','#c8a050','#e8d080','#cc4444','#4455cc','#44aacc','#ccc'];
+const OUTFIT_COLORS=['#3a6a2a','#ccddee','#2a4a6c','#cc4433','#8a2a8a','#ccaa44','#444','#eee'];
+const SHOE_COLORS=['#eee','#fff','#3a2a1a','#111','#666','#8a3a1a','#2a4a6c'];
+const EYE_COLORS=['#44cc44','#88ffcc','#4488ff','#ff8844','#aa44ff','#44ffaa','#ffcc44','#888'];
+const HAIR_STYLES=['PENDEK','PANJANG','JABRIK','IKAL','PLONTOS','EKOR KUDA','MOHAWK','TERURAI'];
+const OUTFIT_STYLES=['JUBAH','PRAJURIT','MAGE','PETANI','PENCURI','SAMURAI','RANGER','SULTAN'];
+const FACE_STYLES=['BIASA','LUKA','TATO','KUMIS','JENGGOT','KACAMATA','TOPENG','BEKAS LUKA'];
+
+// ===================== INVENTORY DATA =====================
+// ===================== PIXEL WEAPON RENDERER =====================
+function drawPixelWeapon(ctx2, weaponId, scale=1) {
+  const w=64*scale,h=64*scale;
+  ctx2.clearRect(0,0,w,h);
+  const p=(x,y,c,s=scale)=>{ctx2.fillStyle=c;ctx2.fillRect(x*s,y*s,s,s);};
+  const rect=(x,y,ww,hh,c,s=scale)=>{ctx2.fillStyle=c;ctx2.fillRect(x*s,y*s,ww*s,hh*s);};
+  const px=(arr,c)=>arr.forEach(([x,y])=>p(x,y,c));
+  switch(weaponId){
+    case'dagger':{rect(30,42,4,12,'#8B4513');rect(29,40,6,3,'#888');for(let i=0;i<18;i++)p(31,22+i,'#ddd');for(let i=0;i<15;i++)p(32,23+i,'#fff');p(31,22,'#aaa');p(32,22,'#eee');p(31,20,'#ccc');p(32,21,'#fff');rect(27,40,10,3,'#aaa');rect(28,39,8,1,'#888');rect(29,54,6,4,'#777');p(30,58,'#555');p(33,58,'#555');break;}
+    case'short-sword':{rect(30,10,4,2,'#ccc');for(let i=0;i<30;i++){p(30,12+i,'#ddd');p(31,12+i,'#fff');p(32,12+i,'#eee');p(33,12+i,'#bbb');}rect(25,42,14,3,'#888');rect(26,40,12,2,'#aaa');rect(29,45,6,14,'#7B3F00');p(29,59,'#555');p(34,59,'#555');rect(28,59,8,3,'#666');break;}
+    case'long-sword':{rect(30,5,4,3,'#eee');for(let i=0;i<38;i++){const w2=i<5?4:i<30?4:3;rect(31-Math.floor(w2/2),8+i,w2,1,'#ddd');p(32,8+i,'#fff');if(i<35)p(30,8+i,'#bbb');}rect(22,46,20,4,'#999');rect(23,44,18,2,'#bbb');rect(29,50,6,10,'#8B4513');rect(28,60,8,3,'#7a3a00');break;}
+    case'battle-axe':{rect(31,15,2,40,'#8B4513');rect(20,15,18,14,'#aaa');rect(20,15,2,14,'#888');rect(36,15,2,14,'#ccc');p(20,15,'#bbb');p(37,15,'#bbb');for(let i=0;i<14;i++)p(19-Math.floor(i*0.3),15+i,'#ccc');rect(28,29,8,6,'#999');rect(27,31,10,2,'#bbb');break;}
+    case'war-hammer':{rect(31,25,3,36,'#6B3A2A');rect(18,14,28,16,'#888');rect(18,14,28,2,'#aaa');rect(18,28,28,2,'#666');rect(18,18,2,8,'#999');rect(44,18,2,8,'#999');rect(24,17,16,12,'#777');p(28,20,'#999');p(34,20,'#999');p(28,24,'#999');p(34,24,'#999');rect(28,61,8,3,'#555');break;}
+    case'spear':{rect(31,10,2,50,'#8B4513');for(let i=0;i<8;i++)rect(30-i,2+i,4+i*2,2,'#ccc');rect(29,10,6,3,'#aaa');rect(30,25,4,2,'#666');rect(30,35,4,2,'#666');rect(30,45,4,2,'#666');rect(30,60,4,3,'#999');p(31,63,'#bbb');break;}
+    case'halberd':{rect(31,8,2,52,'#7B3F00');for(let i=0;i<18;i++)rect(14,8+i,18+i/2,1,'#bbb');rect(14,8,2,18,'#999');for(let i=0;i<10;i++)p(31-i,8-i,'#ccc');for(let i=0;i<10;i++)p(32+i,8-i,'#ccc');for(let i=0;i<6;i++)rect(33+i,26+i,3,1,'#aaa');rect(33,30,3,4,'#999');break;}
+    case'katana':{rect(29,44,6,16,'#333');for(let i=0;i<8;i++)p(29,44+i*2,'#c8a000');for(let i=0;i<8;i++)p(34,44+i*2,'#c8a000');rect(26,42,12,3,'#ffd700');rect(25,43,14,1,'#c8a000');for(let i=0;i<38;i++){const curve=Math.floor(i/12);p(31+curve,4+i,'#eee');p(32+curve,4+i,'#fff');if(i>0)p(30+curve,4+i,'#ccc');}p(33,4,'#eee');p(34,5,'#fff');break;}
+    case'scythe':{rect(30,10,3,50,'#8B4513');for(let i=0;i<24;i++){rect(8+i,10+i,1,3,'#ccc');p(7+i,11+i,'#ddd');}rect(10,10,20,2,'#bbb');rect(30,10,3,3,'#888');break;}
+    case'mace':{rect(30,28,4,30,'#8B4513');rect(24,12,16,16,'#999');for(let i=0;i<6;i++){const ang=i*60;const xx=Math.round(32+12*Math.cos(ang*Math.PI/180));const yy=Math.round(20+12*Math.sin(ang*Math.PI/180));rect(xx-2,yy-2,4,4,'#bbb');}rect(26,14,12,12,'#aaa');p(31,11,'#ccc');p(32,10,'#ddd');p(33,11,'#ccc');break;}
+    case'flail':{rect(30,38,4,20,'#8B4513');for(let i=0;i<5;i++)rect(30+i,28+i*2,4,2,'#888');rect(27,18,10,10,'#777');for(let ang=0;ang<360;ang+=45){const xx=Math.round(32+7*Math.cos(ang*Math.PI/180));const yy=Math.round(23+7*Math.sin(ang*Math.PI/180));p(xx,yy,'#aaa');}break;}
+    case'shield-sword':{rect(12,18,18,28,'#4466cc');rect(12,18,18,2,'#6688ff');rect(12,18,2,28,'#6688ff');rect(14,20,14,24,'#3355aa');rect(18,28,6,6,'#888');rect(36,12,3,40,'#ddd');rect(37,12,2,38,'#fff');rect(32,36,12,3,'#aaa');break;}
+    case'javelin':{for(let i=0;i<50;i++)p(32,12+i,'#8B4513');for(let i=0;i<8;i++)rect(31-Math.floor(i/3),4+i,2+Math.floor(i/3)*2,1,'#ccc');rect(30,12,4,2,'#888');for(let i=0;i<6;i++)p(32,30+i*2,'#c0a040');break;}
+    case'trident':{rect(31,20,2,40,'#8B4513');for(let i=0;i<16;i++){p(24,4+i,'#ccc');p(25,4+i,'#ddd');p(31,4+i,'#ccc');p(32,4+i,'#ddd');p(38,4+i,'#ccc');p(39,4+i,'#ddd');}rect(22,20,20,2,'#aaa');p(24,3,'#fff');p(32,3,'#fff');p(39,3,'#fff');p(23,4,'#eee');p(31,4,'#eee');p(38,4,'#eee');break;}
+    case'bow':{for(let i=0;i<28;i++){const curve=Math.round(Math.sin(i/28*Math.PI)*8);p(24-curve,4+i,'#8B4513');p(24-curve+1,4+i,'#a0522d');}for(let i=0;i<28;i++){const curve=Math.round(Math.sin(i/28*Math.PI)*8);p(24-curve,34+i,'#8B4513');p(24-curve+1,34+i,'#a0522d');}for(let i=0;i<56;i++)p(38,4+i,'#ddd');rect(25,28,14,2,'#8B4513');p(39,28,'#ccc');p(39,29,'#ccc');px([[25,27],[25,28],[26,26],[26,30],[27,25],[27,31]],'#ff4444');break;}
+    case'crossbow':{rect(20,30,30,5,'#8B4513');rect(20,22,5,18,'#666');rect(10,24,10,2,'#888');rect(10,36,10,2,'#888');for(let i=0;i<14;i++)p(10,24+i,'#ccc');rect(38,28,5,8,'#666');rect(42,30,8,4,'#555');rect(22,29,22,2,'#aaa');p(44,29,'#ccc');p(44,30,'#ccc');break;}
+    case'heavy-crossbow':{rect(18,32,32,6,'#5C3317');rect(18,28,6,22,'#777');rect(8,26,12,3,'#888');rect(8,41,12,3,'#888');for(let i=0;i<17;i++)p(8,26+i,'#bbb');rect(12,22,8,6,'#666');rect(13,19,2,3,'#888');rect(17,19,2,3,'#888');rect(38,30,10,10,'#555');rect(48,32,6,6,'#444');rect(20,31,28,2,'#bbb');break;}
+    case'sling':{rect(28,30,8,8,'#c8a040');rect(29,31,6,6,'#b08030');for(let i=0;i<18;i++)p(16+i,22+i,'#c8a040');for(let i=0;i<14;i++)p(44-i,20+i,'#c8a040');rect(12,20,6,4,'#b08030');break;}
+    case'flintlock':{rect(36,38,8,16,'#8B4513');rect(37,36,7,3,'#7a3a00');rect(18,30,20,10,'#888');rect(22,28,3,3,'#777');rect(8,28,16,6,'#666');p(8,29,'#888');p(8,32,'#888');rect(38,26,6,8,'#777');rect(40,24,3,4,'#999');p(41,23,'#bbb');rect(35,38,3,8,'#888');p(36,44,'#666');break;}
+    case'musket':{rect(6,28,38,6,'#777');rect(6,28,2,6,'#999');rect(42,28,2,6,'#999');rect(40,28,18,10,'#8B4513');rect(44,38,12,8,'#7a3a00');rect(36,24,10,10,'#888');rect(38,22,5,4,'#999');p(40,21,'#bbb');for(let i=0;i<34;i++)p(20+i,35,'#999');rect(8,26,4,3,'#aaa');break;}
+    case'pistol':{rect(16,26,28,8,'#444');rect(16,26,28,2,'#666');rect(28,34,14,5,'#555');rect(30,38,12,16,'#333');rect(31,39,10,14,'#2a2a2a');rect(29,37,3,8,'#444');p(30,43,'#333');p(32,37,'#666');p(16,25,'#888');p(41,25,'#888');p(16,30,'#222');p(17,30,'#333');break;}
+    case'revolver':{rect(12,27,22,8,'#555');rect(30,24,14,14,'#666');for(let i=0;i<6;i++){const ang=i*60;const cx2=Math.round(37+5*Math.cos(ang*Math.PI/180));const cy2=Math.round(31+5*Math.sin(ang*Math.PI/180));p(cx2,cy2,'#333');}rect(28,35,18,5,'#555');rect(30,40,14,18,'#8B4513');rect(31,41,12,16,'#7a3a00');rect(42,22,5,8,'#666');p(46,21,'#888');rect(29,38,3,8,'#555');break;}
+    case'shotgun':{rect(8,26,32,4,'#777');rect(8,31,32,4,'#777');rect(8,26,2,9,'#999');rect(38,24,10,14,'#666');rect(46,26,14,16,'#8B4513');rect(14,30,20,4,'#8B4513');rect(40,35,4,10,'#555');p(41,43,'#444');break;}
+    case'assault-rifle':{rect(6,27,24,4,'#555');rect(20,25,14,8,'#444');rect(28,24,18,10,'#555');rect(44,26,14,8,'#444');rect(54,22,6,4,'#555');rect(30,34,10,14,'#666');rect(31,35,8,12,'#555');rect(40,24,4,3,'#666');rect(24,22,16,4,'#444');p(30,21,'#666');p(35,21,'#666');rect(29,33,3,8,'#555');break;}
+    case'sniper':{rect(4,29,40,4,'#555');rect(4,29,2,4,'#888');rect(4,27,4,8,'#666');rect(28,22,20,7,'#333');rect(29,23,18,5,'#444');p(32,24,'#666');p(44,24,'#666');rect(36,28,16,8,'#555');rect(50,24,12,16,'#4a4a4a');rect(12,33,4,10,'#888');rect(16,33,4,10,'#888');rect(8,43,6,2,'#777');rect(18,43,6,2,'#777');rect(40,36,8,10,'#666');break;}
+    case'smg':{rect(8,28,24,8,'#555');rect(8,28,2,8,'#777');rect(28,26,14,12,'#555');rect(28,14,8,14,'#666');rect(29,15,6,12,'#555');rect(36,30,12,8,'#4a4a4a');rect(38,36,8,4,'#555');rect(28,34,4,8,'#555');p(29,40,'#444');break;}
+    case'lmg':{rect(6,26,38,6,'#555');rect(6,24,4,10,'#666');rect(10,32,3,14,'#888');rect(18,32,3,14,'#888');rect(8,46,6,2,'#777');rect(17,46,6,2,'#777');rect(36,24,20,10,'#555');rect(38,34,16,16,'#666');rect(40,36,12,12,'#555');p(45,42,'#777');rect(54,22,10,16,'#444');for(let i=0;i<5;i++)rect(42+i,16-i,4,3,'#888');break;}
+    case'rpg':{rect(6,26,48,10,'#556b2f');rect(6,26,48,2,'#6b8340');rect(6,34,48,2,'#445520');for(let i=0;i<10;i++)rect(2-Math.floor(i/3),20+i,6+Math.floor(i/3),2,'#cc4400');rect(6,20,2,12,'#884400');rect(54,24,10,14,'#444');rect(28,36,8,16,'#3a3a3a');rect(24,22,10,6,'#333');rect(27,48,4,8,'#333');break;}
+    case'bazooka':{rect(4,24,56,14,'#556b2f');rect(4,24,56,2,'#789050');rect(4,36,56,2,'#3a5020');p(4,25,'#8a9060');p(4,35,'#8a9060');p(59,25,'#8a9060');p(59,35,'#8a9060');rect(8,26,30,10,'#c84400');rect(24,38,20,8,'#445530');rect(18,36,6,14,'#3a3a3a');rect(44,36,6,14,'#3a3a3a');rect(28,20,16,6,'#333');p(33,19,'#666');p(38,19,'#666');rect(4,28,2,6,'#ffd700');rect(58,28,2,6,'#ffd700');break;}
+    case'grenade-launcher':{rect(10,28,22,8,'#556b2f');rect(8,26,4,12,'#445520');rect(30,26,4,12,'#444');rect(32,24,20,14,'#555');rect(34,36,10,16,'#8B4513');rect(35,37,8,14,'#7a3a00');rect(33,38,3,8,'#555');rect(14,24,10,5,'#444');rect(30,27,4,9,'#888');p(31,28,'#aaa');p(32,28,'#aaa');break;}
+    default:{rect(26,10,12,44,'#888');rect(22,38,20,5,'#666');break;}
+  }
+}
+
+// Weapon animation state
+const weapAnimState = {};
+function getWeapAnim(id, animType) {
+  if (!weapAnimState[id]) weapAnimState[id] = {t:Math.random()*100};
+  weapAnimState[id].t += 0.04;
+  const t = weapAnimState[id].t;
+  switch(animType) {
+    case 'bob':    return {tx:0, ty:Math.sin(t)*4, rot:0, sc:1};
+    case 'float':  return {tx:Math.sin(t*0.7)*2, ty:Math.sin(t)*5, rot:Math.sin(t*0.5)*4, sc:1};
+    case 'spin':   return {tx:0, ty:0, rot:t*30%360, sc:1};
+    case 'shake':  return {tx:Math.sin(t*8)*2, ty:0, rot:0, sc:1};
+    case 'pulse':  return {tx:0, ty:0, rot:0, sc:1+Math.sin(t*2)*0.08};
+    case 'recoil': return {tx:Math.sin(t*3)*4, ty:0, rot:0, sc:1};
+    default:       return {tx:0, ty:0, rot:0, sc:1};
+  }
+}
+
+// Per-weapon attack animation configs
+// Each returns {phase, progress (0-1), and weapon transform per frame}
+const ATTACK_ANIMS = {
+  // Melee slash: wide horizontal arc
+  slash: {
+    frames: 18, sfxVariant: 'slash',
+    getTransform(f, facing) {
+      const p = f / 18;
+      const ease = p < 0.4 ? p/0.4 : 1-(p-0.4)/0.6;
+      const swing = facing===1 ? -120*ease : 120*ease;
+      return {rot: swing, tx: facing===1?8*ease:-8*ease, ty:-4*ease, sc:1+0.15*ease, reach:16*ease};
+    }
+  },
+  // Stab: thrust forward
+  stab: {
+    frames: 14, sfxVariant: 'stab',
+    getTransform(f, facing) {
+      const p = f / 14;
+      const thrust = p < 0.5 ? p/0.5 : 1-(p-0.5)/0.5;
+      return {rot: facing===1?-20:20, tx:(facing===1?1:-1)*22*thrust, ty:-6*thrust, sc:1, reach:18*thrust};
+    }
+  },
+  // Heavy swing: overhead slam
+  slam: {
+    frames: 22, sfxVariant: 'slam',
+    getTransform(f, facing) {
+      const p = f / 22;
+      const wind = p < 0.3 ? p/0.3 : 0;
+      const swing = p >= 0.3 ? (p-0.3)/0.7 : 0;
+      return {rot: facing===1 ? -80*wind + 160*swing : 80*wind - 160*swing, tx:0, ty:6*swing, sc:1+0.2*Math.max(0,swing-0.5)*2, reach:12*swing};
+    }
+  },
+  // Spin attack: 360 rotation
+  spin: {
+    frames: 20, sfxVariant: 'slash',
+    getTransform(f, facing) {
+      const p = f / 20;
+      return {rot: p*360*(facing===1?1:-1), tx: Math.sin(p*Math.PI*2)*8, ty:-Math.abs(Math.sin(p*Math.PI))*6, sc:1+0.1*Math.sin(p*Math.PI), reach:10};
+    }
+  },
+  // Shoot/recoil: gun recoil
+  shoot: {
+    frames: 14, sfxVariant: 'shoot',
+    getTransform(f, facing) {
+      const p = f / 14;
+      const kick = p < 0.2 ? p/0.2 : p < 0.5 ? 1-(p-0.2)/0.3 : 0;
+      return {rot: facing===1?-5+kick*-12:5+kick*12, tx:(facing===1?-1:1)*kick*6, ty:kick*3, sc:1, reach:0};
+    }
+  },
+  // Throw: overhead arc
+  throw: {
+    frames: 16, sfxVariant: 'throw',
+    getTransform(f, facing) {
+      const p = f / 16;
+      const arc = Math.sin(p * Math.PI);
+      return {rot: facing===1?-90*p:90*p, tx:(facing===1?1:-1)*20*p, ty:-10*arc, sc:1-0.3*p, reach:20*p};
+    }
+  },
+  // Magic: glow burst
+  magic: {
+    frames: 18, sfxVariant: 'magic',
+    getTransform(f, facing) {
+      const p = f / 18;
+      const pulse = Math.sin(p * Math.PI * 3) * 0.15;
+      return {rot: Math.sin(p*Math.PI*4)*(facing===1?15:-15), tx:Math.sin(p*Math.PI*2)*4, ty:-5*Math.sin(p*Math.PI), sc:1+pulse, reach:14*Math.sin(p*Math.PI)};
+    }
+  },
+  // Bob default
+  bob: {
+    frames: 12, sfxVariant: 'slash',
+    getTransform(f, facing) {
+      const p = f / 12;
+      const s = Math.sin(p * Math.PI);
+      return {rot: facing===1?-40*s:40*s, tx:(facing===1?1:-1)*8*s, ty:-4*s, sc:1+0.05*s, reach:8*s};
+    }
+  }
+};
+
+// Map weapon category to attack animation
+function getAttackAnimType(weapId) {
+  if (!weapId || !ITEM_DB[weapId]) return 'bob';
+  const db = ITEM_DB[weapId];
+  const cat = db.category;
+  const id = weapId;
+  // Special cases
+  if (id==='magic_staff') return 'magic';
+  if (id==='war_sling') return 'spin';
+  if (id==='battle_axe'||id==='war_hammer'||id==='iron_mace') return 'slam';
+  if (id==='javelin'||id==='war_sling') return 'throw';
+  if (id==='dagger'||id==='short_sword'||id==='golden_dagger') return 'slash';
+  if (id==='war_spear'||id==='halberd'||id==='trident') return 'stab';
+  if (id==='katana'||id==='long_sword'||id==='war_scythe'||id==='chain_flail') return 'spin';
+  if (id==='sword_shield') return 'stab';
+  if (cat==='ranged'||cat==='modern'||cat==='explosive') return 'shoot';
+  if (cat==='melee') return 'slash';
+  return 'bob';
+}
+
+const ITEM_DB = {
+  // ── MELEE WEAPONS (from Pixel Arsenal) ──────────────────────────
+  dagger:           {name:'Dagger',icon:'🗡',type:'weapon',slot:'weapon',atk:8,def:0,spd:5,rarity:'common',anim:'bob',glowColor:'#aaaaaa',category:'melee',desc:'Pisau pendek bertepi tajam dua sisi. Serangan cepat.',tags:['STEALTH','QUICK'],range:10,color:'#888'},
+  short_sword:      {name:'Short Sword',icon:'⚔',type:'weapon',slot:'weapon',atk:15,def:0,spd:2,rarity:'uncommon',anim:'bob',glowColor:'#00ff88',category:'melee',desc:'Pedang pendek seimbang antara kecepatan dan daya.',tags:['BALANCED'],range:20,color:'#00ff88'},
+  long_sword:       {name:'Longsword',icon:'⚔',type:'weapon',slot:'weapon',atk:22,def:2,spd:-1,rarity:'rare',anim:'float',glowColor:'#00cfff',category:'melee',desc:'Pedang panjang kesatria abad pertengahan.',tags:['KNIGHT','TWO-HAND'],range:40,color:'#00cfff'},
+  battle_axe:       {name:'Battle Axe',icon:'🪓',type:'weapon',slot:'weapon',atk:30,def:0,spd:-3,rarity:'rare',anim:'spin',glowColor:'#ff3355',category:'melee',desc:'Kapak tempur bermata lebar. Menembus pertahanan musuh.',tags:['HEAVY','ARMOR BREAK'],range:25,color:'#ff3355'},
+  war_hammer:       {name:'War Hammer',icon:'🔨',type:'weapon',slot:'weapon',atk:38,def:4,spd:-5,rarity:'epic',anim:'shake',glowColor:'#9b59ff',category:'melee',desc:'Palu perang masif. Menciptakan gelombang kejut.',tags:['STUN','AOE SHAKE'],range:20,color:'#9b59ff'},
+  war_spear:        {name:'War Spear',icon:'🏹',type:'weapon',slot:'weapon',atk:18,def:1,spd:1,rarity:'uncommon',anim:'float',glowColor:'#00ff88',category:'melee',desc:'Tombak tempur ujung logam baja. Jangkauan sedang.',tags:['PHALANX','PIERCE'],range:50,color:'#00ff88'},
+  halberd:          {name:'Halberd',icon:'⚔',type:'weapon',slot:'weapon',atk:28,def:3,spd:-2,rarity:'epic',anim:'float',glowColor:'#9b59ff',category:'melee',desc:'Kombinasi tombak dan kapak. Anti-cavalry.',tags:['ANTI-CAVALRY','HYBRID'],range:60,color:'#9b59ff'},
+  katana:           {name:'Katana',icon:'⚔',type:'weapon',slot:'weapon',atk:26,def:0,spd:4,rarity:'legendary',anim:'float',glowColor:'#ffd700',category:'melee',desc:'Pedang samurai legendaris. Simbol kehormatan.',tags:['SAMURAI','CRITICAL+'],range:35,color:'#ffd700'},
+  war_scythe:       {name:'War Scythe',icon:'⚔',type:'weapon',slot:'weapon',atk:24,def:0,spd:-1,rarity:'epic',anim:'spin',glowColor:'#9b59ff',category:'melee',desc:'Sabit tempur. Mampu memuai jiwa.',tags:['SWEEP','REAPER'],range:55,color:'#9b59ff'},
+  iron_mace:        {name:'Iron Mace',icon:'⚔',type:'weapon',slot:'weapon',atk:20,def:1,spd:-1,rarity:'uncommon',anim:'bob',glowColor:'#ff8c00',category:'melee',desc:'Gada besi berujung bintang. Anti-armor.',tags:['BLUNT','ANTI-ARMOR'],range:18,color:'#ff8c00'},
+  chain_flail:      {name:'Chain Flail',icon:'⛓',type:'weapon',slot:'weapon',atk:22,def:0,spd:0,rarity:'rare',anim:'spin',glowColor:'#00cfff',category:'melee',desc:'Rantai dengan bola berduri. Sulit diblok.',tags:['UNPREDICTABLE','CHAIN'],range:30,color:'#00cfff'},
+  sword_shield:     {name:'Sword & Shield',icon:'🛡',type:'weapon',slot:'weapon',atk:16,def:8,spd:0,rarity:'rare',anim:'pulse',glowColor:'#00cfff',category:'melee',desc:'Kombinasi pedang dan perisai. Setup defensif.',tags:['DEFENSIVE','BLOCK'],range:22,color:'#00cfff'},
+  javelin:          {name:'Javelin',icon:'🏹',type:'weapon',slot:'weapon',atk:16,def:0,spd:3,rarity:'uncommon',anim:'float',glowColor:'#00ff88',category:'melee',desc:'Lembing ringan yang bisa dilempar.',tags:['THROWN','PIERCE'],range:45,color:'#00ff88'},
+  trident:          {name:'Trident',icon:'🔱',type:'weapon',slot:'weapon',atk:26,def:1,spd:-1,rarity:'epic',anim:'pulse',glowColor:'#00cfff',category:'melee',desc:'Trisula poseidon dengan tiga ujung tajam.',tags:['THREE-PIERCE','GLADIATOR'],range:52,color:'#00cfff'},
+  // ── RANGED WEAPONS ───────────────────────────────────────────────
+  longbow:          {name:'Longbow',icon:'🏹',type:'weapon',slot:'weapon',atk:14,def:0,spd:1,rarity:'uncommon',anim:'pulse',glowColor:'#00ff88',category:'ranged',desc:'Busur panjang kayu yew. Mampu tembus armor.',tags:['SILENT','LONG RANGE'],range:85,ammo:20,color:'#00ff88'},
+  crossbow:         {name:'Crossbow',icon:'🏹',type:'weapon',slot:'weapon',atk:20,def:0,spd:-2,rarity:'rare',anim:'pulse',glowColor:'#00cfff',category:'ranged',desc:'Busur mekanik dengan mekanisme pegas.',tags:['BOLT','ARMOR PIERCE'],range:80,ammo:10,color:'#00cfff'},
+  heavy_crossbow:   {name:'Heavy Crossbow',icon:'🏹',type:'weapon',slot:'weapon',atk:32,def:0,spd:-4,rarity:'epic',anim:'pulse',glowColor:'#9b59ff',category:'ranged',desc:'Crossbow berat dengan tali baja.',tags:['SIEGE','ANTI-CAVALRY'],range:85,ammo:5,color:'#9b59ff'},
+  war_sling:        {name:'War Sling',icon:'⭕',type:'weapon',slot:'weapon',atk:10,def:0,spd:3,rarity:'common',anim:'spin',glowColor:'#aaaaaa',category:'ranged',desc:'Ketapel tali. Amunisi tak terbatas.',tags:['ANCIENT','UNLIMITED AMMO'],range:65,ammo:999,color:'#aaaaaa'},
+  // ── HISTORICAL FIREARMS ──────────────────────────────────────────
+  flintlock:        {name:'Flintlock Pistol',icon:'🔫',type:'weapon',slot:'weapon',atk:25,def:0,spd:0,rarity:'uncommon',anim:'recoil',glowColor:'#ff8c00',category:'ranged',desc:'Pistol pemantik batu api era abad ke-17.',tags:['DUEL','SINGLE SHOT'],range:35,ammo:1,color:'#ff8c00'},
+  musket:           {name:'Musket',icon:'🔫',type:'weapon',slot:'weapon',atk:28,def:0,spd:-2,rarity:'uncommon',anim:'recoil',glowColor:'#ff8c00',category:'ranged',desc:'Senapan pemuatan moncong era Napoleon.',tags:['NAPOLEON','VOLLEY'],range:60,ammo:1,color:'#ff8c00'},
+  // ── MODERN FIREARMS ──────────────────────────────────────────────
+  pistol_9mm:       {name:'9mm Pistol',icon:'🔫',type:'weapon',slot:'weapon',atk:16,def:0,spd:2,rarity:'common',anim:'recoil',glowColor:'#ffd700',category:'modern',desc:'Pistol semi-otomatis standar 9mm.',tags:['SEMI-AUTO','SIDEARM'],range:40,ammo:15,color:'#ffd700'},
+  revolver_357:     {name:'.357 Revolver',icon:'🔫',type:'weapon',slot:'weapon',atk:24,def:0,spd:-1,rarity:'uncommon',anim:'recoil',glowColor:'#ff8c00',category:'modern',desc:'Revolver kaliper .357 Magnum. Tidak pernah macet.',tags:['MAGNUM','COWBOY'],range:45,ammo:6,color:'#ff8c00'},
+  pump_shotgun:     {name:'Pump Shotgun',icon:'🔫',type:'weapon',slot:'weapon',atk:36,def:0,spd:-2,rarity:'uncommon',anim:'recoil',glowColor:'#ff3355',category:'modern',desc:'Senjata laras pendek dengan buckshot.',tags:['BUCKSHOT','CLOSE RANGE'],range:20,ammo:8,color:'#ff3355'},
+  assault_rifle:    {name:'Assault Rifle',icon:'🔫',type:'weapon',slot:'weapon',atk:20,def:0,spd:1,rarity:'rare',anim:'shake',glowColor:'#00ff88',category:'modern',desc:'Senapan serbu 5.56mm. Tulang punggung infanteri.',tags:['FULL-AUTO','MILITARY'],range:70,ammo:30,color:'#00ff88'},
+  sniper_rifle:     {name:'Sniper Rifle',icon:'🔫',type:'weapon',slot:'weapon',atk:42,def:0,spd:-4,rarity:'epic',anim:'float',glowColor:'#9b59ff',category:'modern',desc:'Senapan presisi tinggi dengan scope 10x.',tags:['PRECISION','ONE SHOT'],range:100,ammo:5,color:'#9b59ff'},
+  smg:              {name:'Submachine Gun',icon:'🔫',type:'weapon',slot:'weapon',atk:14,def:0,spd:3,rarity:'rare',anim:'shake',glowColor:'#00cfff',category:'modern',desc:'Senjata otomatis kompak. Laju tembak tinggi.',tags:['CQB','HIGH ROF'],range:35,ammo:45,color:'#00cfff'},
+  lmg:              {name:'Light Machine Gun',icon:'🔫',type:'weapon',slot:'weapon',atk:22,def:0,spd:-2,rarity:'epic',anim:'shake',glowColor:'#ff3355',category:'modern',desc:'Senapan mesin ringan drum 100 peluru.',tags:['SUPPRESSION','DRUM MAG'],range:65,ammo:100,color:'#ff3355'},
+  // ── EXPLOSIVES ───────────────────────────────────────────────────
+  rpg7:             {name:'RPG-7',icon:'🚀',type:'weapon',slot:'weapon',atk:80,def:0,spd:-6,rarity:'epic',anim:'recoil',glowColor:'#ff8c00',category:'explosive',desc:'Peluncur roket anti-tank portabel.',tags:['ANTI-TANK','ROCKET'],range:75,ammo:3,color:'#ff8c00'},
+  bazooka:          {name:'M1 Bazooka',icon:'🚀',type:'weapon',slot:'weapon',atk:90,def:0,spd:-7,rarity:'legendary',anim:'recoil',glowColor:'#ffd700',category:'explosive',desc:'Peluncur roket ikonik WWII.',tags:['WWII','ANTI-TANK'],range:80,ammo:2,color:'#ffd700'},
+  grenade_launcher: {name:'Grenade Launcher',icon:'💥',type:'weapon',slot:'weapon',atk:60,def:0,spd:-3,rarity:'rare',anim:'recoil',glowColor:'#ff3355',category:'explosive',desc:'Peluncur granat 40mm underbarrel.',tags:['AREA DENIAL','40MM'],range:50,ammo:6,color:'#ff3355'},
+  // ── LEGACY WEAPONS (original game) ──────────────────────────────
+  rusty_sword:      {name:'Pedang Berkarat',icon:'🗡',type:'weapon',slot:'weapon',atk:5,def:0,spd:0,rarity:'common',anim:'bob',glowColor:'#888',category:'melee',desc:'Pedang tua yang sudah berkarat.',tags:['OLD'],range:18,color:'#888'},
+  magic_staff:      {name:'Tongkat Sihir',icon:'🪄',type:'weapon',slot:'weapon',atk:12,def:2,spd:1,rarity:'rare',anim:'float',glowColor:'#88aaff',category:'melee',desc:'Tongkat penuh energi sihir.',tags:['MAGIC'],range:30,color:'#88aaff'},
+  hunters_bow:      {name:'Busur Pemburu',icon:'🏹',type:'weapon',slot:'weapon',atk:14,def:0,spd:3,rarity:'uncommon',anim:'pulse',glowColor:'#aa8844',category:'ranged',desc:'Busur ringan untuk berburu.',tags:['RANGED'],range:60,ammo:20,color:'#aa8844'},
+  golden_dagger:    {name:'Belati Emas',icon:'🔱',type:'weapon',slot:'weapon',atk:10,def:0,spd:5,rarity:'rare',anim:'bob',glowColor:'#ddaa44',category:'melee',desc:'Belati ringan berlapis emas.',tags:['STEALTH','GOLD'],range:15,color:'#ddaa44'},
+  // ── ARMOR ────────────────────────────────────────────────────────
+  cloth_armor:   {name:'Baju Kain',icon:'👕',type:'armor',slot:'body',atk:0,def:3,spd:2,desc:'Pakaian biasa yang nyaman.',color:'#ccddee'},
+  leather_armor: {name:'Baju Kulit',icon:'🛡',type:'armor',slot:'body',atk:0,def:8,spd:0,desc:'Pelindung dari kulit hewan.',color:'#8a6340'},
+  chain_mail:    {name:'Baju Rantai',icon:'⚙',type:'armor',slot:'body',atk:0,def:14,spd:-2,desc:'Baju zirah rantai baja.',color:'#888'},
+  mage_robe:     {name:'Jubah Penyihir',icon:'🧥',type:'armor',slot:'body',atk:2,def:5,spd:1,desc:'Jubah tempa untuk para mage.',color:'#8a2a8a'},
+  // ── HELMS ────────────────────────────────────────────────────────
+  iron_helm:     {name:'Helm Besi',icon:'⛑',type:'helm',slot:'head',atk:0,def:6,spd:0,desc:'Helm besi pelindung kepala.',color:'#aaa'},
+  leather_cap:   {name:'Topi Kulit',icon:'🎩',type:'helm',slot:'head',atk:0,def:3,spd:1,desc:'Topi ringan dari kulit.',color:'#7a5535'},
+  wizard_hat:    {name:'Topi Penyihir',icon:'🧙',type:'helm',slot:'head',atk:1,def:2,spd:0,desc:'Topi tinggi bertanda bintang.',color:'#4455cc'},
+  // ── ACCESSORIES ──────────────────────────────────────────────────
+  speed_boots:   {name:'Sepatu Cepat',icon:'👟',type:'accessory',slot:'feet',atk:0,def:1,spd:4,desc:'Sepatu ajaib penambah kecepatan.',color:'#88ffcc'},
+  power_ring:    {name:'Cincin Kuat',icon:'💍',type:'accessory',slot:'ring',atk:4,def:0,spd:0,desc:'Cincin yang meningkatkan kekuatan.',color:'#ddaa44'},
+  shield_amulet: {name:'Jimat Tameng',icon:'📿',type:'accessory',slot:'neck',atk:0,def:3,spd:0,desc:'Jimat pelindung dari sihir jahat.',color:'#aa88ff'},
+  // ── CONSUMABLES ──────────────────────────────────────────────────
+  health_potion: {name:'Ramuan HP',icon:'🧪',type:'consumable',slot:null,atk:0,def:0,spd:0,desc:'Memulihkan 30 HP.',color:'#ff4488',qty:3},
+  bread:         {name:'Roti',icon:'🍞',type:'consumable',slot:null,atk:0,def:0,spd:0,desc:'Makanan sederhana. +10 HP.',color:'#cc9944',qty:5},
+  mana_potion:   {name:'Ramuan Mana',icon:'💧',type:'consumable',slot:null,atk:0,def:0,spd:0,desc:'Memulihkan energi sihir.',color:'#4488ff',qty:2},
+};
+
+// Player inventory
+let inventory = {
+  items: [
+    {id:'rusty_sword',qty:1},{id:'dagger',qty:1},{id:'short_sword',qty:1},
+    {id:'cloth_armor',qty:1},{id:'leather_cap',qty:1},{id:'leather_armor',qty:1},
+    {id:'health_potion',qty:3},{id:'bread',qty:5},{id:'mana_potion',qty:2},
+    {id:'speed_boots',qty:1},{id:'power_ring',qty:1},{id:'shield_amulet',qty:1},
+    {id:'hunters_bow',qty:1},{id:'war_sling',qty:1},{id:'flintlock',qty:1},
+  ],
+  equipped: {weapon:'rusty_sword',body:'cloth_armor',head:null,feet:null,ring:null,neck:null},
+  gold: 120,
+};
+
+function getEquippedStats(){
+  let atk=5,def=5,spd=5;
+  for(const slot in inventory.equipped){
+    const id=inventory.equipped[slot];
+    if(id&&ITEM_DB[id]){atk+=ITEM_DB[id].atk;def+=ITEM_DB[id].def;spd+=ITEM_DB[id].spd;}
+  }
+  return {atk,def,spd};
+}
+
+// Wardrobe color presets
+const wardColors={
+  outfitColors:[...OUTFIT_COLORS],
+  hairColors:[...HAIR_COLORS],
+  shoeColors:[...SHOE_COLORS],
+  eyeColors:[...EYE_COLORS],
+};
+
+// ===================== OVERLAY =====================
+let overlayOpen=false,currentOvTab='inventory';
+let selectedInvSlot=null,selectedWardItem=null;
+
+function openOverlay(tab){
+  overlayOpen=true;
+  document.getElementById('overlayScreen').classList.add('active');
+  switchOvTab(tab||'inventory');
+  // Animate ward preview
+  animWardPreview();
+}
+function closeOverlay(){
+  overlayOpen=false;
+  document.getElementById('overlayScreen').classList.remove('active');
+}
+function switchOvTab(tab){
+  currentOvTab=tab;
+  document.querySelectorAll('.ov-tab').forEach((el,i)=>{el.classList.toggle('active',['inventory','wardrobe','weapons'][i]===tab);});
+  document.getElementById('ovTitle').textContent=tab==='inventory'?'✦ INVENTORI ✦':tab==='wardrobe'?'✦ LEMARI PAKAIAN ✦':'✦ ARSENAL PIXEL ✦';
+  renderOverlay();
+}
+function renderOverlay(){
+  const body=document.getElementById('ovBody');
+  if(currentOvTab==='inventory') body.innerHTML=buildInventoryUI();
+  else if(currentOvTab==='wardrobe') body.innerHTML=buildWardrobeUI();
+  else body.innerHTML=buildWeaponUI();
+  bindOverlayEvents();
+}
+
+// ---- INVENTORY UI ----
+function buildInventoryUI(){
+  const slots=[];
+  // 25 slots total
+  for(let i=0;i<25;i++){
+    const it=inventory.items[i];
+    if(it&&ITEM_DB[it.id]){
+      const db=ITEM_DB[it.id];
+      const isEq=Object.values(inventory.equipped).includes(it.id);
+      const isSel=selectedInvSlot===i;
+      slots.push(`<div class="inv-slot has-item${isEq?' equipped':''}${isSel?' selected':''}" onclick="selectInvSlot(${i})">
+        ${isEq?'<span class="slot-eq">★</span>':''}
+        <span class="slot-icon">${db.icon}</span>
+        <span class="slot-name">${db.name}</span>
+        ${it.qty>1?`<span class="slot-qty">x${it.qty}</span>`:''}
+      </div>`);
+    } else {
+      slots.push(`<div class="inv-slot" onclick="selectInvSlot(${i})"></div>`);
+    }
+  }
+  const det=buildItemDetail();
+  const stats=getEquippedStats();
+  return `
+    <div class="inv-grid">${slots.join('')}</div>
+    <div class="inv-detail">
+      <div style="font-size:5px;color:#446655;margin-bottom:6px">STATISTIK</div>
+      <div class="inv-det-stats">⚔ ATK: ${stats.atk}<br>🛡 DEF: ${stats.def}<br>💨 SPD: ${stats.spd}<br>💰 EMAS: ${inventory.gold}</div>
+      <hr style="border:none;border-top:1px solid #1a3322;margin:4px 0">
+      ${det}
+    </div>`;
+}
+
+function buildItemDetail(){
+  if(selectedInvSlot===null||!inventory.items[selectedInvSlot])return`<div style="font-size:5px;color:#334433;text-align:center;margin-top:20px">Pilih item</div>`;
+  const it=inventory.items[selectedInvSlot],db=ITEM_DB[it.id];
+  if(!db)return'';
+  const isEq=inventory.equipped[db.slot]===it.id;
+  const canEquip=db.slot!==null;
+  const canUse=db.type==='consumable';
+  return`
+    <div class="inv-det-icon">${db.icon}</div>
+    <div class="inv-det-name">${db.name}</div>
+    <div class="inv-det-type">${db.type.toUpperCase()}${db.slot?' • '+db.slot.toUpperCase():''}</div>
+    <div class="inv-det-desc">${db.desc}</div>
+    ${db.atk||db.def||db.spd?`<div class="inv-det-stats">${db.atk?`⚔ +${db.atk}ATK `:''} ${db.def?`🛡 +${db.def}DEF `:''}${db.spd?`💨 ${db.spd>0?'+':''}${db.spd}SPD`:''}</div>`:''}
+    ${canEquip?`<button class="inv-det-btn${isEq?' red':''}" onclick="toggleEquip('${it.id}')">${isEq?'✕ LEPAS':'✓ PAKAI'}</button>`:''}
+    ${canUse?`<button class="inv-det-btn" onclick="useItem('${it.id}')">▶ GUNAKAN</button>`:''}
+    <button class="inv-det-btn red" style="margin-top:2px" onclick="dropItem(${selectedInvSlot})">🗑 BUANG</button>`;
+}
+
+function selectInvSlot(i){selectedInvSlot=i;sfxSelect();renderOverlay();}
+function toggleEquip(id){
+  const db=ITEM_DB[id];if(!db||!db.slot)return;
+  if(inventory.equipped[db.slot]===id){inventory.equipped[db.slot]=null;}
+  else{inventory.equipped[db.slot]=id;}
+  sfxEquip();
+  // Sync charConfig with equipped outfit/shoe color
+  if(db.slot==='body'&&db.color)charConfig.outfitColor=db.color;
+  if(db.slot==='feet'&&db.color)charConfig.shoeColor=db.color;
+  renderOverlay();
+}
+function useItem(id){
+  const db=ITEM_DB[id];if(!db||db.type!=='consumable')return;
+  if(db.name.includes('HP')||db.name.includes('Roti')){vPlayer.hp=Math.min(vPlayer.maxHp,vPlayer.hp+(db.name.includes('HP')?30:10));notification={text:db.icon+' +HP! ('+db.name+')',timer:90};}
+  // Remove one qty
+  const it=inventory.items.find(x=>x.id===id);if(it){it.qty--;if(it.qty<=0)inventory.items=inventory.items.filter(x=>x.id!==id);}
+  sfxEquip();selectedInvSlot=null;renderOverlay();
+}
+function dropItem(i){
+  inventory.items.splice(i,1);selectedInvSlot=null;sfxSelect();renderOverlay();
+}
+
+// ---- WARDROBE UI ----
+const WARD_CANON_COLORS = {
+  outfit:['#3a6a2a','#ccddee','#2a4a6c','#cc4433','#3a6a2a','#8a2a8a','#ccaa44','#444','#eee','#aa6633','#5a8a6a','#8855aa'],
+  hair:  ['#6b3a1a','#111','#3a2a1a','#7a4a1a','#c8a050','#e8d080','#cc4444','#4455cc','#44aacc','#ccc','#fff','#ff8844'],
+  shoe:  ['#eee','#fff','#3a2a1a','#111','#666','#8a3a1a','#2a4a6c','#4a8a4a','#cc4433'],
+  eye:   ['#44cc44','#88ffcc','#4488ff','#ff8844','#aa44ff','#44ffaa','#ffcc44','#ff4488'],
+};
+function buildWardrobeUI(){
+  const eq=inventory.equipped;
+  const eqSlots=[
+    {slot:'weapon',label:'SENJATA',icon:eq.weapon&&ITEM_DB[eq.weapon]?'⚔':'⬜'},
+    {slot:'body',label:'BAJU',icon:eq.body&&ITEM_DB[eq.body]?ITEM_DB[eq.body].icon:'⬜'},
+    {slot:'head',label:'HELM',icon:eq.head&&ITEM_DB[eq.head]?ITEM_DB[eq.head].icon:'⬜'},
+    {slot:'feet',label:'KAKI',icon:eq.feet&&ITEM_DB[eq.feet]?ITEM_DB[eq.feet].icon:'⬜'},
+    {slot:'ring',label:'CINCIN',icon:eq.ring&&ITEM_DB[eq.ring]?ITEM_DB[eq.ring].icon:'⬜'},
+    {slot:'neck',label:'LEHER',icon:eq.neck&&ITEM_DB[eq.neck]?ITEM_DB[eq.neck].icon:'⬜'},
+  ];
+  return`<div class="ward-body">
+    <div class="ward-preview">
+      <div style="font-size:6px;color:#446655;margin-bottom:4px">TAMPILAN</div>
+      <div class="ward-canvas-wrap"><canvas id="wardCanvas" width="70" height="100"></canvas></div>
+      <div style="font-size:5px;color:#88ffcc;margin-top:6px;text-align:center">${charConfig.name||'???'}</div>
+      <div style="font-size:5px;color:#446655;margin-top:2px;text-align:center">${charConfig.gender==='male'?'PRIA':'WANITA'}</div>
+      <div style="font-size:5px;color:#446655;margin-top:8px;margin-bottom:3px">SLOT EKIPMEN</div>
+      <div class="ward-slots">
+        ${eqSlots.map(s=>`<div class="ward-eq-slot${inventory.equipped[s.slot]?' has-item':''}">
+          <span class="ward-slot-icon">${s.icon}</span>
+          <span style="font-size:4px">${s.label}</span>
+          ${inventory.equipped[s.slot]?`<span style="font-size:3px;color:#ffcc44">${ITEM_DB[inventory.equipped[s.slot]]?.name||''}</span>`:''}
+        </div>`).join('')}
+      </div>
+    </div>
+    <div class="ward-right">
+      <div class="ward-category-label">✦ WARNA PAKAIAN</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
+        ${WARD_CANON_COLORS.outfit.map(c=>`<div onclick="setWardColor('outfit','${c}')" style="width:28px;height:28px;background:${c};border:2px solid ${charConfig.outfitColor===c?'#88ffcc':'#1a3322'};cursor:pointer;border-radius:2px;transform:scale(${charConfig.outfitColor===c?'1.15':'1'})"></div>`).join('')}
+      </div>
+      <div class="ward-category-label">✦ WARNA RAMBUT</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
+        ${WARD_CANON_COLORS.hair.map(c=>`<div onclick="setWardColor('hair','${c}')" style="width:28px;height:28px;background:${c};border:2px solid ${charConfig.hairColor===c?'#88ffcc':'#1a3322'};cursor:pointer;border-radius:50%;transform:scale(${charConfig.hairColor===c?'1.15':'1'})"></div>`).join('')}
+      </div>
+      <div class="ward-category-label">✦ WARNA SEPATU</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
+        ${WARD_CANON_COLORS.shoe.map(c=>`<div onclick="setWardColor('shoe','${c}')" style="width:28px;height:28px;background:${c};border:2px solid ${charConfig.shoeColor===c?'#88ffcc':'#1a3322'};cursor:pointer;border-radius:2px;transform:scale(${charConfig.shoeColor===c?'1.15':'1'})"></div>`).join('')}
+      </div>
+      <div class="ward-category-label">✦ WARNA MATA</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
+        ${WARD_CANON_COLORS.eye.map(c=>`<div onclick="setWardColor('eye','${c}')" style="width:28px;height:28px;background:${c};border:2px solid ${charConfig.eyeColor===c?'#88ffcc':'#1a3322'};cursor:pointer;border-radius:50%;transform:scale(${charConfig.eyeColor===c?'1.15':'1'})"></div>`).join('')}
+      </div>
+      <div class="ward-category-label">✦ GAYA RAMBUT</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
+        ${HAIR_STYLES.map((n,i)=>`<div onclick="setHairStyleWard(${i})" style="padding:6px 4px;background:${charConfig.hairStyle===i?'#0a2a18':'#0a1208'};border:1px solid ${charConfig.hairStyle===i?'#88ffcc':'#1a3322'};font-size:5px;color:${charConfig.hairStyle===i?'#88ffcc':'#446644'};text-align:center;cursor:pointer;font-family:'Press Start 2P',monospace">${n}</div>`).join('')}
+      </div>
+      <div class="ward-category-label">✦ FITUR WAJAH</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+        ${FACE_STYLES.map((n,i)=>`<div onclick="setFaceStyleWard(${i})" style="padding:6px 4px;background:${charConfig.faceStyle===i?'#0a2a18':'#0a1208'};border:1px solid ${charConfig.faceStyle===i?'#88ffcc':'#1a3322'};font-size:5px;color:${charConfig.faceStyle===i?'#88ffcc':'#446644'};text-align:center;cursor:pointer;font-family:'Press Start 2P',monospace">${n}</div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function setWardColor(type,c){sfxSelect();if(type==='outfit')charConfig.outfitColor=c;else if(type==='hair')charConfig.hairColor=c;else if(type==='shoe')charConfig.shoeColor=c;else if(type==='eye')charConfig.eyeColor=c;renderOverlay();drawWardCanvas();}
+function setHairStyleWard(i){sfxSelect();charConfig.hairStyle=i;renderOverlay();drawWardCanvas();}
+function setFaceStyleWard(i){sfxSelect();charConfig.faceStyle=i;renderOverlay();drawWardCanvas();}
+
+// ---- WEAPON UI ----
+const RARITY_COLORS = {common:'#aaaaaa',uncommon:'#00ff88',rare:'#00cfff',epic:'#9b59ff',legendary:'#ffd700'};
+const WEAPON_ANIM_MAP = {
+  dagger:'bob',short_sword:'bob',long_sword:'float',battle_axe:'spin',war_hammer:'shake',
+  war_spear:'float',halberd:'float',katana:'float',war_scythe:'spin',iron_mace:'bob',
+  chain_flail:'spin',sword_shield:'pulse',javelin:'float',trident:'pulse',
+  longbow:'pulse',crossbow:'pulse',heavy_crossbow:'pulse',war_sling:'spin',
+  flintlock:'recoil',musket:'recoil',pistol_9mm:'recoil',revolver_357:'recoil',
+  pump_shotgun:'recoil',assault_rifle:'shake',sniper_rifle:'float',smg:'shake',
+  lmg:'shake',rpg7:'recoil',bazooka:'recoil',grenade_launcher:'recoil',
+  rusty_sword:'bob',magic_staff:'float',hunters_bow:'pulse',golden_dagger:'bob',
+};
+const WEAPON_CANVAS_MAP = {
+  dagger:'dagger',short_sword:'short-sword',long_sword:'long-sword',battle_axe:'battle-axe',
+  war_hammer:'war-hammer',war_spear:'spear',halberd:'halberd',katana:'katana',
+  war_scythe:'scythe',iron_mace:'mace',chain_flail:'flail',sword_shield:'shield-sword',
+  javelin:'javelin',trident:'trident',longbow:'bow',crossbow:'crossbow',
+  heavy_crossbow:'heavy-crossbow',war_sling:'sling',flintlock:'flintlock',musket:'musket',
+  pistol_9mm:'pistol',revolver_357:'revolver',pump_shotgun:'shotgun',assault_rifle:'assault-rifle',
+  sniper_rifle:'sniper',smg:'smg',lmg:'lmg',rpg7:'rpg',bazooka:'bazooka',
+  grenade_launcher:'grenade-launcher',rusty_sword:'dagger',magic_staff:'spear',
+  hunters_bow:'bow',golden_dagger:'dagger',
+};
+const WEAPON_CATEGORIES = [
+  {id:'all',label:'⚔ SEMUA'},
+  {id:'melee',label:'🗡 MELEE'},
+  {id:'ranged',label:'🏹 RANGED'},
+  {id:'modern',label:'🔫 MODERN'},
+  {id:'explosive',label:'💥 LEDAKAN'},
+];
+
+let weaponFilterCat = 'all';
+let selectedWeaponId = null;
+let weaponAnimFrame = null;
+
+function buildWeaponUI() {
+  // Get all weapons the player owns
+  const owned = inventory.items.filter(it => ITEM_DB[it.id] && ITEM_DB[it.id].type === 'weapon');
+  // All weapons for the arsenal shop (all from ITEM_DB)
+  const allWeapons = Object.entries(ITEM_DB).filter(([,db]) => db.type === 'weapon');
+
+  const rarityOrder = {legendary:0,epic:1,rare:2,uncommon:3,common:4};
+  const filtered = allWeapons.filter(([id,db]) => {
+    if (!db.category) return true;
+    return weaponFilterCat === 'all' || db.category === weaponFilterCat;
+  }).sort((a,b) => (rarityOrder[a[1].rarity]||4) - (rarityOrder[b[1].rarity]||4));
+
+  const selDb = selectedWeaponId && ITEM_DB[selectedWeaponId];
+  const selOwned = selectedWeaponId && inventory.items.some(it => it.id === selectedWeaponId);
+  const selEq = selectedWeaponId && inventory.equipped.weapon === selectedWeaponId;
+
+  return `<div style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+    <!-- Filter bar -->
+    <div style="display:flex;gap:4px;padding:6px 10px;border-bottom:1px solid #1a3322;flex-shrink:0;overflow-x:auto;">
+      ${WEAPON_CATEGORIES.map(c=>`<button onclick="setWeapFilter('${c.id}')" style="padding:4px 8px;background:${weaponFilterCat===c.id?'#0a3020':'#050c08'};border:1px solid ${weaponFilterCat===c.id?'#88ffcc':'#1a3322'};color:${weaponFilterCat===c.id?'#88ffcc':'#446655'};font-size:5px;font-family:'Press Start 2P',monospace;cursor:pointer;white-space:nowrap;flex-shrink:0">${c.label}</button>`).join('')}
+    </div>
+    <div style="display:flex;flex:1;overflow:hidden;">
+      <!-- Weapon grid -->
+      <div style="flex:1;overflow-y:auto;padding:8px;display:grid;grid-template-columns:repeat(3,1fr);gap:5px;align-content:start;" id="weapGrid">
+        ${filtered.map(([id,db])=>{
+          const isEq = inventory.equipped.weapon === id;
+          const isOwned = inventory.items.some(it=>it.id===id);
+          const isSel = selectedWeaponId === id;
+          const rarC = RARITY_COLORS[db.rarity||'common'];
+          return `<div onclick="selectWeapon('${id}')" style="background:${isSel?'#0a2a18':isEq?'#1a1a08':'#050c08'};border:2px solid ${isSel?'#88ffcc':isEq?'#ffcc44':rarC+'44'};cursor:pointer;padding:4px;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${rarC};"></div>
+            <div style="display:flex;align-items:center;justify-content:center;height:38px;background:#030808;position:relative;overflow:hidden;">
+              <canvas id="wc_${id}" width="32" height="32" style="image-rendering:pixelated;width:32px;height:32px;position:relative;z-index:1;"></canvas>
+              <div style="position:absolute;width:30px;height:8px;border-radius:50%;bottom:2px;background:${db.glowColor||rarC};opacity:0.3;filter:blur(4px);"></div>
+            </div>
+            <div style="font-size:4px;color:${rarC};font-family:'Press Start 2P',monospace;margin-top:3px;line-height:1.4;text-align:center;">${db.name}</div>
+            ${isEq?'<div style="position:absolute;top:3px;right:3px;font-size:7px;">★</div>':''}
+            ${isOwned&&!isEq?'<div style="position:absolute;top:3px;right:3px;font-size:5px;color:#446644">✓</div>':''}
+          </div>`;
+        }).join('')}
+      </div>
+      <!-- Detail panel -->
+      <div style="width:160px;flex-shrink:0;padding:8px;border-left:1px solid #1a3322;overflow-y:auto;display:flex;flex-direction:column;gap:6px;" id="weapDetail">
+        ${selDb ? buildWeaponDetail(selectedWeaponId, selDb, selOwned, selEq) : `<div style="font-size:5px;color:#334433;text-align:center;margin-top:30px;line-height:2">Pilih senjata<br>untuk detail</div>`}
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildWeaponDetail(id, db, isOwned, isEq) {
+  const rarC = RARITY_COLORS[db.rarity||'common'];
+  const statColors = {atk:'#ff3355',def:'#00ff88',spd:'#ffd700'};
+  const equippedStats = getEquippedStats();
+  return `
+    <div style="text-align:center;">
+      <span style="font-size:5px;padding:2px 6px;background:${rarC}22;border:1px solid ${rarC};color:${rarC};font-family:'Press Start 2P',monospace;">${(db.rarity||'common').toUpperCase()}</span>
+    </div>
+    <div style="background:#030808;border:1px solid #1a3322;display:flex;align-items:center;justify-content:center;height:70px;position:relative;overflow:hidden;">
+      <canvas id="wdCanvas" width="48" height="48" style="image-rendering:pixelated;width:48px;height:48px;position:relative;z-index:1;"></canvas>
+      <div style="position:absolute;bottom:4px;width:40px;height:10px;border-radius:50%;background:${db.glowColor||rarC};opacity:0.4;filter:blur(6px);"></div>
+    </div>
+    <div style="font-size:6px;color:${rarC};text-align:center;line-height:1.5;font-family:'Press Start 2P',monospace;">${db.name}</div>
+    <div style="font-size:4px;color:#446655;text-align:center;">${(db.category||'weapon').toUpperCase()}</div>
+    <div style="font-size:4px;color:#88aa88;line-height:1.8;padding:3px;border-left:1px solid ${rarC};background:#050c08;">${db.desc}</div>
+    <div style="font-size:4px;line-height:2.2;">
+      <div style="display:flex;align-items:center;gap:4px;"><span style="color:#446655;width:28px">⚔ATK</span><div style="flex:1;height:4px;background:#1a2a1a;border:1px solid #1a3322;overflow:hidden;"><div style="height:100%;width:${Math.min(100,db.atk)}%;background:#ff3355;"></div></div><span style="color:#ff3355;font-size:3px">${db.atk}</span></div>
+      <div style="display:flex;align-items:center;gap:4px;"><span style="color:#446655;width:28px">🛡DEF</span><div style="flex:1;height:4px;background:#1a2a1a;border:1px solid #1a3322;overflow:hidden;"><div style="height:100%;width:${Math.min(100,db.def*3)}%;background:#00ff88;"></div></div><span style="color:#00ff88;font-size:3px">${db.def}</span></div>
+      <div style="display:flex;align-items:center;gap:4px;"><span style="color:#446655;width:28px">💨SPD</span><div style="flex:1;height:4px;background:#1a2a1a;border:1px solid #1a3322;overflow:hidden;"><div style="height:100%;width:${Math.min(100,(db.spd+10)*8)}%;background:#ffd700;"></div></div><span style="color:#ffd700;font-size:3px">${db.spd>0?'+':''}${db.spd}</span></div>
+      ${db.range?`<div style="display:flex;align-items:center;gap:4px;"><span style="color:#446655;width:28px">📏RNG</span><div style="flex:1;height:4px;background:#1a2a1a;border:1px solid #1a3322;overflow:hidden;"><div style="height:100%;width:${db.range}%;background:#00cfff;"></div></div><span style="color:#00cfff;font-size:3px">${db.range}</span></div>`:''}
+      ${db.ammo?`<div style="font-size:4px;color:#9b59ff;margin-top:2px;">🔶 AMMO: ${db.ammo===999?'∞':db.ammo}</div>`:''}
+    </div>
+    ${db.tags?`<div style="display:flex;flex-wrap:wrap;gap:2px;">${db.tags.map(t=>`<span style="font-size:3px;padding:2px 4px;background:#0a1a0f;border:1px solid #1a3322;color:#557755;">${t}</span>`).join('')}</div>`:''}
+    ${isOwned?`
+      <button onclick="toggleEquipWeapon('${id}')" style="padding:6px;background:${isEq?'#1a0a08':'#0a2018'};border:1px solid ${isEq?'#aa4433':'#44aa66'};color:${isEq?'#ff8877':'#88ffcc'};font-size:6px;font-family:'Press Start 2P',monospace;cursor:pointer;text-align:center;">${isEq?'✕ LEPAS':'✓ PASANG'}</button>
+    `:`<div style="font-size:4px;color:#334433;text-align:center;padding:4px;border:1px dashed #1a3322;line-height:2;">Tidak dimiliki<br><span style="color:#446644">Beli di Kedai</span></div>`}
+    <div style="font-size:4px;color:#446644;line-height:2;padding:3px;background:#050c08;border:1px solid #1a3322;">
+      🎮 ANIMASI<br><span style="color:#557755">${getAnimDesc(db.anim||'bob')}</span>
+    </div>
+  `;
+}
+
+function getAnimDesc(anim) {
+  const d = {bob:'Gerakan naik-turun melambung',float:'Mengambang pelan + rotasi',spin:'Berputar 360°',shake:'Getaran saat serangan',pulse:'Denyut energi',recoil:'Recoil saat ditembak'};
+  return d[anim]||'Animasi standar';
+}
+
+function setWeapFilter(cat) {
+  weaponFilterCat = cat;
+  sfxSelect();
+  renderOverlay();
+  setTimeout(()=>initWeaponCanvases(), 20);
+}
+
+function selectWeapon(id) {
+  selectedWeaponId = id;
+  sfxSelect();
+  renderOverlay();
+  setTimeout(()=>{initWeaponCanvases();drawWeaponDetailCanvas();}, 20);
+}
+
+function toggleEquipWeapon(id) {
+  const db = ITEM_DB[id];
+  if (!db) return;
+  if (inventory.equipped.weapon === id) {
+    inventory.equipped.weapon = null;
+  } else {
+    inventory.equipped.weapon = id;
+  }
+  sfxEquip();
+  renderOverlay();
+  setTimeout(()=>{initWeaponCanvases();drawWeaponDetailCanvas();}, 20);
+}
+
+function drawWeaponDetailCanvas() {
+  if (!selectedWeaponId) return;
+  const c = document.getElementById('wdCanvas');
+  if (!c) return;
+  const ctx2 = c.getContext('2d');
+  const db = ITEM_DB[selectedWeaponId];
+  if (!db) return;
+  const canvasId = WEAPON_CANVAS_MAP[selectedWeaponId] || 'dagger';
+  const animType = WEAPON_ANIM_MAP[selectedWeaponId] || 'bob';
+  const anim = getWeapAnim('detail_'+selectedWeaponId, animType);
+  ctx2.clearRect(0,0,48,48);
+  ctx2.save();
+  ctx2.translate(24+anim.tx, 24+anim.ty);
+  ctx2.rotate(anim.rot * Math.PI/180);
+  ctx2.scale(anim.sc, anim.sc);
+  ctx2.translate(-24, -24);
+  // Draw at 48x48 scale (scale factor ~0.75 of 64)
+  const tmpCanvas = document.createElement('canvas');
+  tmpCanvas.width = 64; tmpCanvas.height = 64;
+  const tmpCtx = tmpCanvas.getContext('2d');
+  drawPixelWeapon(tmpCtx, canvasId, 1);
+  ctx2.drawImage(tmpCanvas, -8, -8, 64, 64);
+  ctx2.restore();
+}
+
+let weaponGridAnimRunning = false;
+function initWeaponCanvases() {
+  const allWeapons = Object.entries(ITEM_DB).filter(([,db])=>db.type==='weapon');
+  allWeapons.forEach(([id])=>{
+    const c = document.getElementById('wc_'+id);
+    if (!c) return;
+    const ctx2 = c.getContext('2d');
+    const canvasId = WEAPON_CANVAS_MAP[id] || 'dagger';
+    const tmpCanvas = document.createElement('canvas');
+    tmpCanvas.width = 64; tmpCanvas.height = 64;
+    const tmpCtx = tmpCanvas.getContext('2d');
+    drawPixelWeapon(tmpCtx, canvasId, 1);
+    ctx2.clearRect(0,0,32,32);
+    ctx2.drawImage(tmpCanvas, -16, -16, 64, 64);
+  });
+}
+
+function animateWeaponGrid() {
+  if (!overlayOpen || currentOvTab !== 'weapons') { weaponGridAnimRunning = false; return; }
+  weaponGridAnimRunning = true;
+  // Animate detail canvas
+  if (selectedWeaponId) drawWeaponDetailCanvas();
+  // Animate grid canvases with their animations
+  const allWeapons = Object.entries(ITEM_DB).filter(([,db])=>db.type==='weapon');
+  allWeapons.forEach(([id])=>{
+    const c = document.getElementById('wc_'+id);
+    if (!c) return;
+    const ctx2 = c.getContext('2d');
+    const canvasId = WEAPON_CANVAS_MAP[id] || 'dagger';
+    const animType = WEAPON_ANIM_MAP[id] || 'bob';
+    const anim = getWeapAnim(id, animType);
+    ctx2.clearRect(0,0,32,32);
+    ctx2.save();
+    ctx2.translate(16+anim.tx*0.5, 16+anim.ty*0.5);
+    ctx2.rotate((anim.rot * Math.PI/180)*0.5);
+    ctx2.scale(anim.sc, anim.sc);
+    ctx2.translate(-16,-16);
+    const tmpCanvas = document.createElement('canvas');
+    tmpCanvas.width = 64; tmpCanvas.height = 64;
+    const tmpCtx = tmpCanvas.getContext('2d');
+    drawPixelWeapon(tmpCtx, canvasId, 1);
+    ctx2.drawImage(tmpCanvas, -16, -16, 64, 64);
+    ctx2.restore();
+  });
+  requestAnimationFrame(animateWeaponGrid);
+}
+
+function bindOverlayEvents(){
+  setTimeout(()=>{
+    drawWardCanvas();
+    if(currentOvTab==='weapons'){
+      initWeaponCanvases();
+      if(selectedWeaponId) drawWeaponDetailCanvas();
+      if(!weaponGridAnimRunning) animateWeaponGrid();
+    }
+  },20);
+}
+
+// Ward canvas preview
+const wardCanvasEl={el:null,ctx:null};
+function getWardCanvas(){
+  wardCanvasEl.el=document.getElementById('wardCanvas');
+  if(wardCanvasEl.el)wardCanvasEl.ctx=wardCanvasEl.el.getContext('2d');
+  return wardCanvasEl;
+}
+function drawWardCanvas(){
+  const wc=getWardCanvas();if(!wc.el||!wc.ctx)return;
+  const wctx=wc.ctx;wctx.clearRect(0,0,70,100);
+  const cfg=charConfig,isFemale=cfg.gender==='female';
+  const cx=35,cy=60;
+  const bw=isFemale?12:14,bh=isFemale?14:12;
+  const hw=isFemale?10:12,hh=isFemale?11:10;
+  const legW=isFemale?4:5;
+  // Shadow
+  wctx.globalAlpha=.25;wctx.fillStyle='#000';wctx.beginPath();wctx.ellipse(cx,cy+16,10,3,0,0,Math.PI*2);wctx.fill();wctx.globalAlpha=1;
+  // Body
+  wctx.fillStyle=cfg.outfitColor;wctx.fillRect(cx-bw/2,cy-2,bw,bh+2);
+  // Jacket center seam
+  wctx.fillStyle=blendColor(cfg.outfitColor,-35);wctx.fillRect(cx-1,cy-1,2,bh);
+  // Jacket buttons (yellow like Alex)
+  wctx.fillStyle='#ddaa22';wctx.fillRect(cx,cy+1,1,1);wctx.fillRect(cx,cy+4,1,1);wctx.fillRect(cx,cy+7,1,1);
+  // Legs (blue pants for Alex)
+  const wPantsColor=(cfg.outfitColor==='#3a6a2a'||cfg.outfitColor==='#4a8a4a')?'#2a4a8c':blendColor(cfg.outfitColor,-40);
+  wctx.fillStyle=wPantsColor;
+  wctx.fillRect(cx-legW-1,cy+bh,legW,8);wctx.fillRect(cx+1,cy+bh,legW,8);
+  // Shoes
+  wctx.fillStyle=cfg.shoeColor;wctx.fillRect(cx-legW-2,cy+bh+6,legW+2,3);wctx.fillRect(cx,cy+bh+6,legW+2,3);
+  // Arms
+  wctx.fillStyle=cfg.skinTone;const armW=isFemale?3:4;
+  wctx.fillRect(cx-bw/2-armW-1,cy-1,armW,10);wctx.fillRect(cx+bw/2+1,cy-1,armW,10);
+  // Neck
+  wctx.fillStyle=cfg.skinTone;wctx.fillRect(cx-2,cy-5,4,4);
+  // Head
+  wctx.fillStyle=cfg.skinTone;wctx.fillRect(cx-hw/2,cy-hh-5,hw,hh);
+  // Eyes glow
+  const eg=(Math.sin(Date.now()*.003)+1)*.5;
+  wctx.globalAlpha=.5+eg*.5;wctx.fillStyle=cfg.eyeColor;
+  wctx.fillRect(cx-3,cy-hh-5+3,2,2);wctx.fillRect(cx+1,cy-hh-5+3,2,2);
+  wctx.globalAlpha=1;
+  // Hair
+  drawWardHair(wctx,cx,cy-hh-5,hw,hh,cfg.hairStyle,cfg.hairColor,isFemale);
+  // Face extras
+  if(cfg.faceStyle===3){wctx.fillStyle=cfg.hairColor;wctx.fillRect(cx-4,cy-hh-5+7,8,2);}
+  if(cfg.faceStyle===5){wctx.strokeStyle='#888';wctx.lineWidth=1;wctx.strokeRect(cx-4,cy-hh-5+2,4,4);wctx.strokeRect(cx+1,cy-hh-5+2,4,4);}
+  // Aura
+  wctx.globalAlpha=.04+eg*.04;wctx.fillStyle=cfg.eyeColor;
+  wctx.beginPath();wctx.ellipse(cx,cy,8,14,0,0,Math.PI*2);wctx.fill();wctx.globalAlpha=1;
+  // Weapon in hand (pixel art)
+  const weap=inventory.equipped.weapon;
+  if(weap&&ITEM_DB[weap]){
+    const canvasId = WEAPON_CANVAS_MAP[weap] || 'dagger';
+    const animType = WEAPON_ANIM_MAP[weap] || 'bob';
+    const anim = getWeapAnim('hand_'+weap, animType);
+    wctx.save();
+    const hx = cx+bw/2+armW+6, hy = cy+4;
+    wctx.translate(hx + anim.tx*0.3, hy + anim.ty*0.3);
+    wctx.rotate((anim.rot*Math.PI/180)*0.3);
+    wctx.scale(anim.sc*0.32, anim.sc*0.32);
+    wctx.translate(-32,-32);
+    const tmp = document.createElement('canvas'); tmp.width=64; tmp.height=64;
+    drawPixelWeapon(tmp.getContext('2d'), canvasId, 1);
+    wctx.drawImage(tmp, 0, 0);
+    wctx.restore();
+  }
+}
+function drawWardHair(wctx,x,topY,hw,hh,style,color,isFemale){
+  wctx.fillStyle=color;
+  const s=[
+    ()=>{wctx.fillRect(x-hw/2,topY,hw,4);wctx.fillRect(x-hw/2-2,topY+1,3,5);wctx.fillRect(x+hw/2-1,topY+1,3,5);wctx.fillStyle=blendColor(color,25);wctx.fillRect(x-1,topY,3,1);wctx.fillStyle=color;},
+    ()=>{wctx.fillRect(x-hw/2,topY,hw,3);wctx.fillRect(x-hw/2-2,topY+2,3,18);wctx.fillRect(x+hw/2-1,topY+2,3,18);},
+    ()=>{for(let i=0;i<4;i++)wctx.fillRect(x-hw/2+i*(hw/4),topY-3+i%2*2,2,6);wctx.fillRect(x-hw/2,topY,hw,3);},
+    ()=>{wctx.fillRect(x-hw/2,topY,hw,3);for(let i=0;i<3;i++){wctx.fillRect(x-hw/2-2+i*2,topY+2,3,3);wctx.fillRect(x-hw/2-1+i*3,topY+4,2,3);}},
+    ()=>{wctx.fillStyle=blendColor(color,20);wctx.fillRect(x-hw/2,topY,hw,2);},
+    ()=>{wctx.fillRect(x-hw/2,topY,hw,3);wctx.fillRect(x+hw/2-1,topY+3,4,16);},
+    ()=>{for(let i=0;i<3;i++)wctx.fillRect(x-2+i*2,topY-6+i*2,3,6);wctx.fillRect(x-hw/2,topY,hw,3);},
+    ()=>{wctx.fillRect(x-hw/2,topY,hw,4);wctx.fillRect(x-hw/2-2,topY+3,3,22);wctx.fillRect(x+hw/2-1,topY+3,3,22);wctx.fillRect(x-hw/2,topY+14,hw,10);},
+  ];
+  if(s[style])s[style]();
+}
+let _wardAnimId=null;
+function animWardPreview(){if(_wardAnimId)cancelAnimationFrame(_wardAnimId);function loop(){if(!overlayOpen){_wardAnimId=null;return;}drawWardCanvas();_wardAnimId=requestAnimationFrame(loop);}loop();}
+
+// ===================== CUSTOMIZATION =====================
+const previewCanvas=document.getElementById('previewCanvas');
+const pctx=previewCanvas.getContext('2d');
+function drawPreviewChar(){
+  pctx.clearRect(0,0,80,110);
+  const cfg=charConfig,isFemale=cfg.gender==='female';
+  // Stardew-style proportions (scaled up for preview canvas)
+  const bw=isFemale?14:16, bh=isFemale?15:14;
+  const hw=isFemale?14:16, hh=isFemale?13:14;
+  const legW=5, legH=10, shoeW=8, shoeH=3;
+  const armW=4;
+  // Anchor: foot at cy=78
+  const cx=40, footY=78;
+
+  // Shadow
+  pctx.globalAlpha=.25;pctx.fillStyle='#000';pctx.beginPath();pctx.ellipse(cx,footY+3,13,4,0,0,Math.PI*2);pctx.fill();pctx.globalAlpha=1;
+
+  // Shoes
+  const shoeY=footY-shoeH;
+  pctx.fillStyle=cfg.shoeColor;
+  pctx.fillRect(cx-legW-3, shoeY, shoeW, shoeH);
+  pctx.fillRect(cx+1,      shoeY, shoeW, shoeH);
+  pctx.fillStyle=blendColor(cfg.shoeColor,-40);
+  pctx.fillRect(cx-legW-3, shoeY, 1, shoeH);
+  pctx.fillRect(cx+1,      shoeY, 1, shoeH);
+
+  // Pants
+  const pantsColor=(cfg.outfitColor==='#3a6a2a'||cfg.outfitColor==='#4a8a4a')?'#2a4a8c':blendColor(cfg.outfitColor,-45);
+  const legTopY=shoeY-legH;
+  pctx.fillStyle=pantsColor;
+  pctx.fillRect(cx-legW-2, legTopY, legW, legH);
+  pctx.fillRect(cx+1,      legTopY, legW, legH);
+  pctx.fillStyle=blendColor(pantsColor,20);
+  pctx.fillRect(cx-legW-1, legTopY, 1, legH);
+  pctx.fillRect(cx+2,      legTopY, 1, legH);
+
+  // Body jacket
+  const bTop=legTopY-bh;
+  pctx.fillStyle=cfg.outfitColor;
+  pctx.fillRect(cx-bw/2, bTop, bw, bh);
+  pctx.fillStyle=blendColor(cfg.outfitColor,-25);
+  pctx.fillRect(cx-bw/2, bTop+bh-2, bw, 2);
+  pctx.fillStyle=blendColor(cfg.outfitColor,20);
+  pctx.fillRect(cx-bw/2, bTop, bw, 1);
+  pctx.fillStyle=blendColor(cfg.outfitColor,-40);
+  pctx.fillRect(cx-1, bTop+1, 2, bh-2);
+  pctx.fillStyle='#ddaa22';
+  pctx.fillRect(cx, bTop+2, 2, 2);
+  pctx.fillRect(cx, bTop+7, 2, 2);
+  pctx.fillRect(cx, bTop+12, 2, 2);
+
+  // Arms (sleeves + skin)
+  pctx.fillStyle=blendColor(cfg.outfitColor,-10);
+  pctx.fillRect(cx-bw/2-armW-1, bTop+1, armW+1, 7); // left sleeve
+  pctx.fillRect(cx+bw/2,        bTop+1, armW+1, 7); // right sleeve
+  pctx.fillStyle=cfg.skinTone;
+  pctx.fillRect(cx-bw/2-armW-1, bTop+8, armW, 7);   // left hand
+  pctx.fillRect(cx+bw/2,        bTop+8, armW, 7);   // right hand
+
+  // Neck
+  pctx.fillStyle=cfg.skinTone;
+  pctx.fillRect(cx-3, bTop-5, 6, 6);
+
+  // Head
+  const hTop=bTop-5-hh;
+  pctx.fillStyle=cfg.skinTone;
+  pctx.fillRect(cx-hw/2, hTop, hw, hh);
+  pctx.fillStyle=blendColor(cfg.skinTone,-20);
+  pctx.fillRect(cx+hw/2-3, hTop+1, 3, hh-2);
+  pctx.fillRect(cx-hw/2+1, hTop+hh-3, hw-2, 3);
+
+  // Eyes
+  const eyeY=hTop+Math.floor(hh*0.42);
+  pctx.fillStyle='#111';
+  pctx.fillRect(cx-5, eyeY, 4, 4);
+  pctx.fillRect(cx+2, eyeY, 4, 4);
+  pctx.fillStyle=cfg.eyeColor;
+  pctx.fillRect(cx-4, eyeY+1, 3, 3);
+  pctx.fillRect(cx+3, eyeY+1, 3, 3);
+  pctx.fillStyle='#fff';
+  pctx.fillRect(cx-3, eyeY+1, 1, 1);
+  pctx.fillRect(cx+4, eyeY+1, 1, 1);
+
+  // Nose hint
+  pctx.fillStyle=blendColor(cfg.skinTone,-25);
+  pctx.fillRect(cx, eyeY+5, 2, 2);
+
+  // Mouth
+  pctx.fillStyle=blendColor(cfg.skinTone,-40);
+  pctx.fillRect(cx-2, eyeY+9, 5, 2);
+
+  // Hair
+  drawPreviewHair(cx,hTop,hw,hh,cfg.hairStyle,cfg.hairColor,isFemale);
+
+  // Eye glow
+  const glow=(Math.sin(Date.now()*.003)+1)*.5;
+  pctx.globalAlpha=.15+glow*.15;pctx.fillStyle=cfg.eyeColor;pctx.beginPath();pctx.ellipse(cx,hTop+hh/2,10,12,0,0,Math.PI*2);pctx.fill();pctx.globalAlpha=1;
+}
+function drawPreviewHair(x,topY,hw,hh,style,color,isFemale){
+  pctx.fillStyle=color;
+  const styles=[
+    ()=>{pctx.fillRect(x-hw/2,topY-2,hw,6);pctx.fillRect(x-hw/2-3,topY,4,9);pctx.fillRect(x+hw/2-1,topY,4,8);pctx.fillRect(x-hw/2+1,topY-3,hw-2,3);pctx.fillStyle=blendColor(color,30);pctx.fillRect(x-2,topY-2,5,1);pctx.fillStyle=color;},
+    ()=>{pctx.fillRect(x-hw/2,topY,hw,4);pctx.fillRect(x-hw/2-3,topY+2,4,22);pctx.fillRect(x+hw/2-1,topY+2,4,22);},
+    ()=>{for(let i=0;i<5;i++)pctx.fillRect(x-hw/2+i*(hw/5),topY-4+i%2*3,3,8);pctx.fillRect(x-hw/2,topY,hw,4);},
+    ()=>{pctx.fillRect(x-hw/2,topY,hw,4);for(let i=0;i<4;i++){pctx.fillRect(x-hw/2-3+i*2,topY+2,4,4);pctx.fillRect(x-hw/2-2+i*3,topY+5,3,4);}},
+    ()=>{pctx.fillStyle=blendColor(color,20);pctx.fillRect(x-hw/2,topY,hw,2);},
+    ()=>{pctx.fillRect(x-hw/2,topY,hw,4);pctx.fillRect(x+hw/2-2,topY+4,5,20);pctx.fillRect(x+hw/2,topY+20,3,8);},
+    ()=>{for(let i=0;i<4;i++)pctx.fillRect(x-2+i%2*2,topY-8+i*2,4,5);pctx.fillRect(x-hw/2,topY,hw,4);},
+    ()=>{pctx.fillRect(x-hw/2,topY,hw,5);pctx.fillRect(x-hw/2-3,topY+3,4,28);pctx.fillRect(x+hw/2-1,topY+3,4,28);pctx.fillRect(x-hw/2,topY+18,hw,14);},
+  ];
+  if(styles[style])styles[style]();
+  if(isFemale){pctx.fillStyle=blendColor(color,30);pctx.fillRect(x-hw/2,topY,hw,2);}
+}
+function animPreview(){drawPreviewChar();requestAnimationFrame(animPreview);}
+const TAB_ORDER=['identity','skin','hair','outfit','face'];let currentTab='identity';
+function switchTab(tab){currentTab=tab;TAB_ORDER.forEach(t=>{const el=document.querySelector(`.cs-tab[data-tab="${t}"]`);if(el)el.classList.toggle('active',t===tab);});document.getElementById('stepBadge').textContent=`${TAB_ORDER.indexOf(tab)+1}/5`;renderPanel();updateNextBtn();}
+function prevTab(){const i=TAB_ORDER.indexOf(currentTab);if(i>0)switchTab(TAB_ORDER[i-1]);}
+function nextTab(){const i=TAB_ORDER.indexOf(currentTab);if(i<TAB_ORDER.length-1)switchTab(TAB_ORDER[i+1]);else finishCustomization();}
+function updateNextBtn(){const btn=document.getElementById('csNextBtn');const isLast=currentTab===TAB_ORDER[TAB_ORDER.length-1];btn.textContent=isLast?'✦ MULAI PETUALANGAN ✦':'LANJUT ▶';btn.classList.toggle('confirm',isLast);}
+function renderPanel(){const panel=document.getElementById('csPanel');switch(currentTab){case'identity':panel.innerHTML=buildIdentityPanel();break;case'skin':panel.innerHTML=buildSkinPanel();break;case'hair':panel.innerHTML=buildHairPanel();break;case'outfit':panel.innerHTML=buildOutfitPanel();break;case'face':panel.innerHTML=buildFacePanel();break;}bindPanelEvents();}
+function buildIdentityPanel(){return`<div class="cs-section-label">JENIS KELAMIN</div><div class="cs-gender-row"><button class="cs-gender-btn ${charConfig.gender==='male'?'active':''}" onclick="setGender('male')"><span class="g-icon">♂</span>PRIA</button><button class="cs-gender-btn ${charConfig.gender==='female'?'active':''}" onclick="setGender('female')"><span class="g-icon">♀</span>WANITA</button></div><div class="cs-section-label">NAMA</div><div class="cs-name-wrap"><input class="cs-name-input" id="nameInput" type="text" maxlength="12" placeholder="NAMAMU..." value="${charConfig.name}" oninput="onNameInput(this.value)" autocomplete="off" spellcheck="false"><div class="cs-name-counter"><span id="nameCount">${charConfig.name.length}</span>/12</div></div><div class="cs-section-label">WARNA MATA</div><div class="cs-palette">${EYE_COLORS.map((c)=>`<div class="cs-color-swatch ${charConfig.eyeColor===c?'active':''}" style="background:${c};border-radius:50%" onclick="setEyeColor('${c}')"></div>`).join('')}</div>`;}
+function buildSkinPanel(){return`<div class="cs-section-label">WARNA KULIT</div><div class="cs-palette">${SKIN_TONES.map((c)=>`<div class="cs-color-swatch ${charConfig.skinTone===c?'active dark-check':''}" style="background:${c};width:44px;height:44px" onclick="setSkinTone('${c}')"></div>`).join('')}</div>`;}
+function buildHairPanel(){return`<div class="cs-section-label">GAYA RAMBUT</div><div class="cs-option-grid">${HAIR_STYLES.map((_,i)=>`<button class="cs-option-btn ${charConfig.hairStyle===i?'active':''}" onclick="setHairStyle(${i})"><canvas id="hairOpt${i}" width="40" height="40" style="image-rendering:pixelated"></canvas></button>`).join('')}</div><div class="cs-section-label">WARNA RAMBUT</div><div class="cs-palette">${HAIR_COLORS.map((c)=>`<div class="cs-color-swatch ${charConfig.hairColor===c?'active dark-check':''}" style="background:${c}" onclick="setHairColor('${c}')"></div>`).join('')}</div>`;}
+function buildOutfitPanel(){return`<div class="cs-section-label">JENIS PAKAIAN</div><div class="cs-option-grid">${OUTFIT_STYLES.map((n,i)=>`<button class="cs-option-btn ${charConfig.outfitStyle===i?'active':''}" onclick="setOutfitStyle(${i})"><span style="font-size:6px;color:${charConfig.outfitStyle===i?'#88ffcc':'#446644'};font-family:'Press Start 2P',monospace;text-align:center;line-height:1.4">${n}</span></button>`).join('')}</div><div class="cs-section-label">WARNA PAKAIAN</div><div class="cs-palette">${OUTFIT_COLORS.map((c)=>`<div class="cs-color-swatch ${charConfig.outfitColor===c?'active dark-check':''}" style="background:${c}" onclick="setOutfitColor('${c}')"></div>`).join('')}</div><div class="cs-section-label">WARNA SEPATU</div><div class="cs-palette">${SHOE_COLORS.map((c)=>`<div class="cs-color-swatch ${charConfig.shoeColor===c?'active dark-check':''}" style="background:${c}" onclick="setShoeColor('${c}')"></div>`).join('')}</div>`;}
+function buildFacePanel(){return`<div class="cs-section-label">FITUR WAJAH</div><div class="cs-option-grid">${FACE_STYLES.map((n,i)=>`<button class="cs-option-btn ${charConfig.faceStyle===i?'active':''}" onclick="setFaceStyle(${i})"><span style="font-size:6px;color:${charConfig.faceStyle===i?'#88ffcc':'#446644'};font-family:'Press Start 2P',monospace;text-align:center;line-height:1.4">${n}</span></button>`).join('')}</div>`;}
+function bindPanelEvents(){if(currentTab==='hair'){HAIR_STYLES.forEach((_,i)=>{const c=document.getElementById(`hairOpt${i}`);if(!c)return;const hctx=c.getContext('2d');hctx.clearRect(0,0,40,40);hctx.fillStyle=charConfig.hairColor;drawPreviewHairMini(hctx,20,20,i,charConfig.hairColor);});}}
+function drawPreviewHairMini(hctx,x,y,style,color){hctx.fillStyle=color;const s=[()=>{hctx.fillRect(x-8,y-8,16,6);},()=>{hctx.fillRect(x-8,y-8,16,5);hctx.fillRect(x-10,y-6,5,18);hctx.fillRect(x+5,y-6,5,18);},()=>{for(let i=0;i<4;i++)hctx.fillRect(x-8+i*5,y-14+i%2*3,4,10);},()=>{hctx.fillRect(x-8,y-8,16,5);for(let i=0;i<3;i++){hctx.fillRect(x-9+i*3,y-6,5,5);hctx.fillRect(x-8+i*4,y-2,4,5);}},()=>{hctx.fillStyle=blendColor(color,20);hctx.fillRect(x-8,y-8,16,2);},()=>{hctx.fillRect(x-8,y-8,16,5);hctx.fillRect(x+5,y-5,6,18);},()=>{for(let i=0;i<3;i++)hctx.fillRect(x-3+i*2,y-16+i*2,4,8);hctx.fillRect(x-8,y-8,16,5);},()=>{hctx.fillRect(x-8,y-8,16,6);hctx.fillRect(x-10,y-6,5,24);hctx.fillRect(x+5,y-6,5,24);hctx.fillRect(x-8,y+10,16,8);}];if(s[style])s[style]();}
+function setGender(g){charConfig.gender=g;document.querySelectorAll('.cs-gender-btn').forEach(b=>{b.classList.toggle('active',b.textContent.includes(g==='male'?'PRIA':'WANITA'));});renderPanel();}
+function onNameInput(v){charConfig.name=v.slice(0,12);document.getElementById('nameCount').textContent=charConfig.name.length;document.getElementById('nameDisplay').textContent=charConfig.name||'???';}
+function setEyeColor(c){charConfig.eyeColor=c;renderPanel();}
+function setSkinTone(c){charConfig.skinTone=c;renderPanel();}
+function setHairStyle(i){charConfig.hairStyle=i;renderPanel();}
+function setHairColor(c){charConfig.hairColor=c;renderPanel();}
+function setOutfitStyle(i){charConfig.outfitStyle=i;renderPanel();}
+function setOutfitColor(c){charConfig.outfitColor=c;renderPanel();}
+function setShoeColor(c){charConfig.shoeColor=c;renderPanel();}
+function setFaceStyle(i){charConfig.faceStyle=i;renderPanel();}
+function showCustomScreen(){document.getElementById('customScreen').classList.add('active');document.getElementById('nameDisplay').textContent=charConfig.name||'???';switchTab('identity');animPreview();}
+function finishCustomization(){if(!charConfig.name.trim()){const mN=['ARKAN','REZA','BIMA','SURYA'];const fN=['SARI','MAYA','RAYA','NIRA'];charConfig.name=charConfig.gender==='male'?mN[Math.floor(Math.random()*mN.length)]:fN[Math.floor(Math.random()*fN.length)];}document.getElementById('customScreen').classList.remove('active');startVillageScene();}
+
+// ===================== DEATH/VOID/REBORN =====================
+let deathTimer=0,deathAlpha=0,deathBlood=[];
+const deathLines=[{text:"Kau mati.",color:'#ff3333',delay:60},{text:"Duniamu telah berakhir.",color:'#cc2222',delay:130},{text:"Namun...",color:'#888',delay:230},{text:"Sesuatu memanggilmu.",color:'#aaffcc',delay:310}];
+let deathTextAlpha={};
+function initDeath(){deathBlood=Array.from({length:30},(_,i)=>({x:180+noise(i,0,1)*120,y:100+noise(i,0,2)*80,r:2+noise(i,0,3)*8,spread:noise(i,0,4)*20}));}
+function updateDeath(){deathTimer++;if(deathTimer<30)deathAlpha=deathTimer/30;for(let i=0;i<deathLines.length;i++){const l=deathLines[i];if(deathTimer>l.delay)deathTextAlpha[i]=clamp((deathTimer-l.delay)/40,0,1);}if(deathTimer>420){deathAlpha=1-(deathTimer-420)/60;if(deathAlpha<=0){scene=SCENES.VOID;tick=0;deathAlpha=0;}}}
+function renderDeath(){ctx.globalAlpha=deathAlpha;drawRect(0,0,480,320,'#0a0000');for(let b of deathBlood){ctx.globalAlpha=deathAlpha*.6;ctx.fillStyle='#330000';ctx.beginPath();ctx.ellipse(b.x,b.y,b.r+b.spread*.3,b.r*.5,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=deathAlpha*.8;ctx.fillStyle='#660000';ctx.beginPath();ctx.ellipse(b.x,b.y,b.r,b.r*.6,0,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;for(let i=0;i<deathLines.length;i++){if(deathTextAlpha[i]>0){ctx.globalAlpha=deathTextAlpha[i]*deathAlpha;pixelText(deathLines[i].text,240,60+i*30,8,deathLines[i].color,'center');}}ctx.globalAlpha=1;}
+let voidTimer=0,voidAlpha=0;
+const voidLines=[{text:"Kegelapan...",delay:30,dur:100},{text:"Keheningan...",delay:150,dur:100},{text:"Lalu...",delay:280,dur:80},{text:"CAHAYA.",delay:380,dur:999}];
+let voidTextAlpha={},soulTrails=[],lightBurst=0;
+function updateVoid(){voidTimer++;voidAlpha=clamp(voidTimer/40,0,1);if(voidTimer%3===0&&voidTimer>60){soulTrails.push({x:Math.random()*480,y:330,vy:-(1+Math.random()*2),life:80+Math.random()*60,maxLife:140,color:`hsl(${160+Math.random()*40},80%,${60+Math.random()*20}%)`});}soulTrails=soulTrails.filter(s=>s.life>0);for(let s of soulTrails){s.y+=s.vy;s.x+=Math.sin(voidTimer*.03+s.x)*.5;s.life--;}for(let i=0;i<voidLines.length;i++){const l=voidLines[i];if(voidTimer>l.delay){const e=voidTimer-l.delay;if(e<40)voidTextAlpha[i]=e/40;else if(e<l.dur)voidTextAlpha[i]=1;else if(e<l.dur+40)voidTextAlpha[i]=1-(e-l.dur)/40;else voidTextAlpha[i]=0;}}if(voidTimer>390)lightBurst=clamp((voidTimer-390)/50,0,1);if(voidTimer>470){scene=SCENES.REBORN;tick=0;}}
+function renderVoid(){ctx.globalAlpha=voidAlpha;drawRect(0,0,480,320,'#000008');drawStars(voidAlpha);for(let s of soulTrails){ctx.globalAlpha=(s.life/s.maxLife)*voidAlpha*.7;drawRect(Math.floor(s.x),Math.floor(s.y),1,4,s.color);}ctx.globalAlpha=1;if(voidTimer>200){const op=(Math.sin(voidTimer*.04)+1)*.5,oa=clamp((voidTimer-200)/80,0,1)*voidAlpha;const or2=8+op*4;ctx.globalAlpha=oa*.15;ctx.fillStyle='#88ffcc';ctx.beginPath();ctx.arc(240,160,or2*6,0,Math.PI*2);ctx.fill();ctx.globalAlpha=oa*.3;ctx.beginPath();ctx.arc(240,160,or2*2.5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=oa;ctx.fillStyle='#ccffee';ctx.beginPath();ctx.arc(240,160,or2,0,Math.PI*2);ctx.fill();}if(lightBurst>0){ctx.globalAlpha=lightBurst*voidAlpha*.8;const g=ctx.createRadialGradient(240,160,0,240,160,200);g.addColorStop(0,'#fff');g.addColorStop(.3,'#88ffcc');g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(0,0,480,320);}for(let i=0;i<voidLines.length;i++){if(voidTextAlpha[i]>0){ctx.globalAlpha=voidTextAlpha[i]*voidAlpha;const isLast=i===voidLines.length-1;pixelText(voidLines[i].text,240,260,isLast?12:8,isLast?'#fff':'#aaaacc','center');}}ctx.globalAlpha=1;}
+let rebornTimer=0,rebornAlpha=0;
+const rebornNarrative=[{text:'"Kau dipilih."',delay:20,y:80,size:7,color:'#ccffee'},{text:'"Dunia lain membutuhkanmu."',delay:100,y:105,size:6,color:'#aaddcc'},{text:'"Kau tidak membawa apa-apa."',delay:200,y:130,size:6,color:'#aaaacc'},{text:'"Hanya jiwa dan nalurimu."',delay:290,y:153,size:6,color:'#aaaacc'},{text:'"Bertahan. Berkembang."',delay:380,y:185,size:8,color:'#ffeeaa'},{text:'"Jadilah legenda."',delay:460,y:210,size:9,color:'#fff'}];
+let rebornTextAlpha={},rebornSoulX=240,rebornSoulY=-30;
+function updateReborn(){rebornTimer++;rebornAlpha=clamp(rebornTimer/30,0,1);if(rebornTimer>30){rebornSoulY=lerp(rebornSoulY,160,.015);rebornSoulX=240+Math.sin(rebornTimer*.04)*20;}for(let i=0;i<rebornNarrative.length;i++){const l=rebornNarrative[i];if(rebornTimer>l.delay)rebornTextAlpha[i]=clamp((rebornTimer-l.delay)/40,0,1);}if(rebornTimer===660)showCustomScreen();}
+function renderReborn(){const fp=clamp((rebornTimer-30)/400,0,1);drawRect(0,0,480,320,lerpColor('#000010','#0a1a2a',fp));drawStars(rebornAlpha*(1-fp*.7));if(fp>.3){ctx.globalAlpha=clamp((fp-.3)/.7,0,1)*.6;const g=ctx.createLinearGradient(0,200,0,320);g.addColorStop(0,'transparent');g.addColorStop(1,'#2a5a1a');ctx.fillStyle=g;ctx.fillRect(0,0,480,320);ctx.globalAlpha=1;}if(rebornTimer>30){const pulse=(Math.sin(rebornTimer*.08)+1)*.5;ctx.globalAlpha=.1;ctx.fillStyle='#88ffcc';ctx.beginPath();ctx.arc(rebornSoulX,rebornSoulY,30+pulse*5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=.4;ctx.beginPath();ctx.arc(rebornSoulX,rebornSoulY,12+pulse*2,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;ctx.fillStyle='#ccffee';ctx.beginPath();ctx.arc(rebornSoulX,rebornSoulY,5,0,Math.PI*2);ctx.fill();}for(let i=0;i<rebornNarrative.length;i++){if(rebornTextAlpha[i]>0){const l=rebornNarrative[i];ctx.globalAlpha=rebornTextAlpha[i];pixelText(l.text,242,l.y+2,l.size,'#000033','center');pixelText(l.text,240,l.y,l.size,l.color,'center');}}ctx.globalAlpha=1;}
+
+
+// ===================== FIREBASE AUTO-SAVE =====================
+// Save character on customization finish
+const _origFinish = finishCustomization;
+window.finishCustomization = function() {
+  _origFinish();
+  if (window.saveCharacterToFirebase) {
+    window.saveCharacterToFirebase({ ...charConfig });
+  }
+};
+
+// Auto-save game state every 30 seconds
+setInterval(() => {
+  if (scene === SCENES.VILLAGE || scene === SCENES.INDOOR) {
+    if (window.saveGameStateToFirebase) {
+      window.saveGameStateToFirebase({
+        gold: inventory.gold,
+        equipped: inventory.equipped,
+        hp: vPlayer.hp,
+        px: Math.floor(vPlayer.px),
+        py: Math.floor(vPlayer.py),
+      });
+    }
+  }
+}, 30000);
+
+// Try loading saved character on start
+(function tryLoadSave() {
+  if (window.loadFromFirebase) {
+    window.loadFromFirebase((data) => {
+      if (data?.character?.name) {
+        Object.assign(charConfig, data.character);
+        console.log('[Firebase] Character loaded:', charConfig.name);
+      }
+      if (data?.state) {
+        if (data.state.gold) inventory.gold = data.state.gold;
+        if (data.state.equipped) inventory.equipped = data.state.equipped;
+        if (data.state.hp) vPlayer.hp = data.state.hp;
+      }
+    });
+  }
+})();
+
+// ===================== VILLAGE MODULE LOADER =====================
+// After character creation: save to Firebase via index.html, then go to desa
+const _origStartVillage = startVillageScene;
+window.startVillageScene = function() {
+  const slot = parseInt(localStorage.getItem('reborn_new_char_slot') || '0');
+  const charData = {
+    ...charConfig,
+    slot,
+    gold: inventory.gold,
+    equipped: inventory.equipped,
+    items: inventory.items,
+    hp: vPlayer.hp,
+    maxHp: vPlayer.maxHp,
+    level: 1,
+    lastSaved: Date.now(),
+  };
+  // Signal index.html to save the new character to Firebase when we return
+  localStorage.setItem('reborn_save_new_char', JSON.stringify(charData));
+  localStorage.setItem('reborn_save_new_char_slot', String(slot));
+  // Also set quick-load keys for desa.html
+  localStorage.setItem('reborn_charConfig', JSON.stringify(charConfig));
+  localStorage.setItem('reborn_inventory', JSON.stringify({
+    gold: inventory.gold,
+    equipped: inventory.equipped,
+    items: inventory.items,
+  }));
+  localStorage.setItem('reborn_slot', String(slot));
+  // Navigate directly to village
+  window.location.href = 'desa.html';
+};
+
+initDeath();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

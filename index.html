@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>REBORN: Another World</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:none;}
+body{font-family:'Press Start 2P',monospace;cursor:none;}
+#cursor{position:fixed;width:10px;height:10px;background:#fff;pointer-events:none;z-index:9999;
+  box-shadow:0 0 8px #fff,0 0 20px #88ffcc;transform:translate(-50%,-50%);}
+#scanlines{position:fixed;top:0;left:0;right:0;bottom:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.07) 2px,rgba(0,0,0,.07) 4px);
+  pointer-events:none;z-index:900;}
+#vignette{position:fixed;top:0;left:0;right:0;bottom:0;
+  background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.75) 100%);
+  pointer-events:none;z-index:901;}
+
+/* ── CANVAS BACKGROUND ── */
+#bgCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;}
+
+/* ── MAIN WRAPPER ── */
+#ui{position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-family:'Press Start 2P',monospace;}
+
+/* ── SCREENS ── */
+.screen{display:none;flex-direction:column;align-items:center;width:100%;max-width:420px;padding:0 16px;}
+.screen.active{display:flex;}
+
+/* ── LOGO ── */
+.logo-wrap{text-align:center;margin-bottom:28px;}
+.logo-title{font-size:22px;color:#88ffcc;letter-spacing:4px;
+  text-shadow:0 0 20px #88ffcc,0 0 40px #44aa88,0 0 60px #226644;
+  animation:logoGlow 2s ease-in-out infinite alternate;}
+.logo-sub{font-size:7px;color:#446655;letter-spacing:3px;margin-top:8px;}
+.logo-ver{font-size:5px;color:#224433;margin-top:4px;}
+@keyframes logoGlow{from{text-shadow:0 0 10px #88ffcc,0 0 30px #44aa88;}
+  to{text-shadow:0 0 30px #88ffcc,0 0 60px #44aa88,0 0 80px #226644;}}
+
+/* ── CARD ── */
+.card{width:100%;background:rgba(4,12,8,.96);border:2px solid #1a4433;padding:20px 18px;}
+.card-title{font-size:8px;color:#88ffcc;letter-spacing:2px;margin-bottom:18px;text-align:center;
+  border-bottom:1px solid #1a3322;padding-bottom:10px;}
+
+/* ── INPUT ── */
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:6px;color:#446655;margin-bottom:6px;letter-spacing:1px;}
+.field input{width:100%;padding:11px 10px;background:#060f0a;border:2px solid #1a3322;
+  color:#88ffcc;font-size:8px;font-family:'Press Start 2P',monospace;outline:none;
+  caret-color:#88ffcc;transition:border-color .2s;}
+.field input:focus{border-color:#55aa77;}
+.field input::placeholder{color:#2a3d30;}
+
+/* ── BUTTONS ── */
+.btn{width:100%;padding:13px 10px;border:none;font-family:'Press Start 2P',monospace;
+  font-size:7px;cursor:pointer;letter-spacing:1px;transition:all .15s;position:relative;overflow:hidden;}
+.btn-primary{background:#0a2a18;border:2px solid #55cc88;color:#88ffcc;margin-bottom:8px;}
+.btn-primary:hover{background:#0d3a22;border-color:#88ffcc;box-shadow:0 0 14px #88ffcc44;}
+.btn-primary:active{transform:scale(.98);}
+.btn-secondary{background:#06100a;border:2px solid #1a4433;color:#446655;margin-bottom:8px;}
+.btn-secondary:hover{border-color:#336644;color:#55aa77;}
+.btn-danger{background:#1a0608;border:2px solid #6a2233;color:#cc4455;margin-bottom:8px;}
+.btn-danger:hover{border-color:#cc4455;color:#ff6677;}
+.btn::after{content:'';position:absolute;top:0;left:-100%;width:40%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(136,255,204,.08),transparent);
+  animation:btnShimmer 2.5s infinite;}
+@keyframes btnShimmer{to{left:200%;}}
+.btn-row{display:flex;gap:8px;width:100%;}
+.btn-row .btn{margin-bottom:0;}
+
+/* ── DIVIDER ── */
+.divider{display:flex;align-items:center;gap:10px;margin:14px 0;}
+.divider span{font-size:5px;color:#223322;white-space:nowrap;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:#1a3322;}
+
+/* ── MESSAGE ── */
+.msg{font-size:6px;text-align:center;padding:8px;margin-bottom:10px;display:none;}
+.msg.error{color:#ff6677;border:1px solid #6a2233;background:#100408;display:block;}
+.msg.success{color:#88ffcc;border:1px solid #1a4433;background:#041008;display:block;}
+.msg.info{color:#88aaff;border:1px solid #1a2a4a;background:#040810;display:block;}
+
+/* ── LOADING ── */
+#loadingOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);
+  z-index:800;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
+#loadingOverlay.active{display:flex;}
+.loading-text{font-size:7px;color:#88ffcc;letter-spacing:2px;animation:blink 1s step-end infinite;}
+.loading-dots{display:flex;gap:6px;}
+.loading-dot{width:6px;height:6px;background:#88ffcc;}
+.loading-dot:nth-child(1){animation:dotPulse 1s .0s ease-in-out infinite;}
+.loading-dot:nth-child(2){animation:dotPulse 1s .2s ease-in-out infinite;}
+.loading-dot:nth-child(3){animation:dotPulse 1s .4s ease-in-out infinite;}
+@keyframes dotPulse{0%,100%{opacity:.2;transform:scale(.8);}50%{opacity:1;transform:scale(1.2);}}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+/* ── USER INFO BAR ── */
+#userBar{position:fixed;top:0;left:0;right:0;z-index:200;
+  display:none;align-items:center;justify-content:space-between;
+  padding:6px 12px;background:rgba(4,8,6,.95);border-bottom:1px solid #1a3322;}
+#userBar.active{display:flex;}
+.user-email{font-size:5px;color:#446655;}
+.user-session{font-size:5px;color:#223322;}
+.btn-logout{background:none;border:1px solid #3a2233;color:#6a4455;
+  font-family:'Press Start 2P',monospace;font-size:5px;padding:3px 7px;cursor:pointer;}
+.btn-logout:hover{border-color:#cc4455;color:#cc4455;}
+
+/* ── CHARACTER SELECT ── */
+.char-grid{display:flex;flex-direction:column;gap:10px;width:100%;margin-bottom:14px;}
+.char-card{display:flex;align-items:center;gap:14px;padding:12px;
+  background:#060f0a;border:2px solid #1a3322;cursor:pointer;transition:all .2s;}
+.char-card:hover{border-color:#55aa77;background:#080f0b;}
+.char-card.selected{border-color:#88ffcc;background:#0a1a0f;}
+.char-card.empty{border-style:dashed;border-color:#1a2a1a;cursor:pointer;justify-content:center;}
+.char-card.empty:hover{border-color:#335533;}
+.char-avatar{width:44px;height:56px;flex-shrink:0;image-rendering:pixelated;
+  background:#030c06;border:1px solid #1a3322;}
+.char-info{flex:1;min-width:0;}
+.char-name{font-size:7px;color:#88ffcc;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.char-meta{font-size:5px;color:#446655;line-height:1.8;}
+.char-badge{display:inline-block;font-size:4px;padding:2px 5px;margin-right:4px;}
+.badge-online{background:#1a3322;color:#44ff88;border:1px solid #2a5533;}
+.badge-offline{background:#1a1a1a;color:#446644;border:1px solid #2a2a2a;}
+.char-slot-empty{font-size:6px;color:#224422;letter-spacing:1px;}
+.char-action{display:flex;gap:6px;flex-shrink:0;}
+.btn-sm{background:none;border:1px solid #1a3322;color:#446655;font-family:'Press Start 2P',monospace;
+  font-size:5px;padding:5px 8px;cursor:pointer;transition:all .15s;}
+.btn-sm:hover{border-color:#55aa77;color:#88ffcc;}
+.btn-sm.del{border-color:#3a1a22;color:#6a3344;}
+.btn-sm.del:hover{border-color:#cc4455;color:#ff6677;}
+
+/* ── ONLINE PLAYERS ── */
+.online-strip{width:100%;display:flex;align-items:center;gap:8px;margin-top:12px;overflow-x:auto;padding-bottom:4px;}
+.online-strip::-webkit-scrollbar{display:none;}
+.online-player{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;}
+.online-player canvas{image-rendering:pixelated;background:#040c08;border:1px solid #1a3322;}
+.online-player span{font-size:4px;color:#44aa66;}
+.online-count{font-size:5px;color:#334433;margin-top:8px;text-align:center;width:100%;}
+
+/* ── ACCOUNT SETTINGS ── */
+.settings-row{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 0;border-bottom:1px solid #0d1a10;}
+.settings-label{font-size:6px;color:#446655;}
+.settings-val{font-size:6px;color:#88ffcc;}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:rgba(4,20,12,.97);border:1px solid #2a5533;
+  font-size:6px;color:#88ffcc;padding:10px 18px;z-index:1000;
+  opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── PIXEL STARS ── */
+.star{position:fixed;background:#fff;pointer-events:none;}
+
+/* ── SCROLLBARS ── */
+*::-webkit-scrollbar{width:3px;}
+*::-webkit-scrollbar-track{background:#040c08;}
+*::-webkit-scrollbar-thumb{background:#1a3322;}
+</style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+<div id="scanlines"></div>
+<div id="vignette"></div>
+<div id="cursor"></div>
+<div id="toast"></div>
+
+<!-- USER BAR -->
+<div id="userBar">
+  <div>
+    <div class="user-email" id="barEmail"></div>
+    <div class="user-session" id="barSession"></div>
+  </div>
+  <button class="btn-logout" onclick="doLogout()">LOGOUT ▶</button>
+</div>
+
+<!-- LOADING -->
+<div id="loadingOverlay">
+  <div class="loading-text">MEMUAT DATA</div>
+  <div class="loading-dots">
+    <div class="loading-dot"></div>
+    <div class="loading-dot"></div>
+    <div class="loading-dot"></div>
+  </div>
+</div>
+
+<!-- UI ROOT -->
+<div id="ui">
+
+  <!-- ══════════════════ SCREEN: TITLE ══════════════════ -->
+  <div class="screen active" id="screenTitle">
+    <div class="logo-wrap">
+      <div class="logo-title">REBORN</div>
+      <div class="logo-sub">✦ ANOTHER WORLD ✦</div>
+      <div class="logo-ver">v2.4 · PIXEL RPG</div>
+    </div>
+    <div style="width:100%;max-width:420px;padding:0 16px;">
+      <button class="btn btn-primary" onclick="showScreen('screenLogin')">▶ MASUK AKUN</button>
+      <button class="btn btn-secondary" onclick="showScreen('screenRegister')">✦ DAFTAR AKUN BARU</button>
+      <button class="btn btn-secondary" onclick="guestPlay()">◈ MAIN SEBAGAI TAMU</button>
+    </div>
+    <div id="onlineCount" style="font-size:5px;color:#224433;margin-top:18px;text-align:center;"></div>
+  </div>
+
+  <!-- ══════════════════ SCREEN: LOGIN ══════════════════ -->
+  <div class="screen" id="screenLogin">
+    <div class="logo-wrap" style="margin-bottom:16px;">
+      <div class="logo-title" style="font-size:14px;">MASUK</div>
+    </div>
+    <div class="card" style="max-width:420px;width:calc(100% - 32px);">
+      <div class="msg" id="loginMsg"></div>
+      <div class="field">
+        <label>EMAIL</label>
+        <input type="email" id="loginEmail" placeholder="email@kamu.com" autocomplete="email"/>
+      </div>
+      <div class="field">
+        <label>KATA SANDI</label>
+        <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password"/>
+      </div>
+      <button class="btn btn-primary" onclick="doLogin()">▶ MASUK</button>
+      <div class="divider"><span>ATAU</span></div>
+      <button class="btn btn-secondary" onclick="doGoogleLogin()">🌐 MASUK DENGAN GOOGLE</button>
+      <div class="divider"><span></span></div>
+      <button class="btn btn-secondary" style="font-size:5px;" onclick="doForgotPassword()">◈ LUPA KATA SANDI?</button>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;">
+      <button class="btn btn-secondary" style="flex:1;" onclick="showScreen('screenTitle')">◀ KEMBALI</button>
+      <button class="btn btn-secondary" style="flex:1;" onclick="showScreen('screenRegister')">DAFTAR ▶</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════ SCREEN: REGISTER ══════════════════ -->
+  <div class="screen" id="screenRegister">
+    <div class="logo-wrap" style="margin-bottom:16px;">
+      <div class="logo-title" style="font-size:14px;">DAFTAR</div>
+    </div>
+    <div class="card" style="max-width:420px;width:calc(100% - 32px);">
+      <div class="msg" id="registerMsg"></div>
+      <div class="field">
+        <label>NAMA TAMPILAN</label>
+        <input type="text" id="regDisplayName" placeholder="Nama heromu..." maxlength="20"/>
+      </div>
+      <div class="field">
+        <label>EMAIL</label>
+        <input type="email" id="regEmail" placeholder="email@kamu.com" autocomplete="email"/>
+      </div>
+      <div class="field">
+        <label>KATA SANDI <span style="color:#224433;">(min 6 karakter)</span></label>
+        <input type="password" id="regPass" placeholder="••••••••" autocomplete="new-password"/>
+      </div>
+      <div class="field">
+        <label>KONFIRMASI SANDI</label>
+        <input type="password" id="regPass2" placeholder="••••••••" autocomplete="new-password"/>
+      </div>
+      <button class="btn btn-primary" onclick="doRegister()">✦ BUAT AKUN</button>
+      <div class="divider"><span>ATAU</span></div>
+      <button class="btn btn-secondary" onclick="doGoogleLogin()">🌐 DAFTAR DENGAN GOOGLE</button>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;">
+      <button class="btn btn-secondary" style="flex:1;" onclick="showScreen('screenTitle')">◀ KEMBALI</button>
+      <button class="btn btn-secondary" style="flex:1;" onclick="showScreen('screenLogin')">MASUK ▶</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════ SCREEN: CHARACTER SELECT ══════════════════ -->
+  <div class="screen" id="screenCharSelect">
+    <div class="logo-wrap" style="margin-bottom:12px;">
+      <div class="logo-title" style="font-size:13px;">PILIH KARAKTER</div>
+      <div class="logo-sub" id="selectSubtitle" style="font-size:5px;margin-top:6px;"></div>
+    </div>
+    <div style="width:calc(100% - 0px);max-width:420px;overflow-y:auto;max-height:70vh;">
+      <div class="char-grid" id="charGrid"></div>
+
+      <!-- Online players preview -->
+      <div id="onlineSection" style="display:none;">
+        <div style="font-size:5px;color:#334433;margin-bottom:8px;letter-spacing:1px;">⬡ ONLINE DI DESA SEKARANG</div>
+        <div class="online-strip" id="onlineStrip"></div>
+        <div class="online-count" id="onlineCountBar"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;width:100%;max-width:420px;display:flex;gap:8px;">
+      <button class="btn btn-secondary" style="flex:1;font-size:5px;" onclick="showScreen('screenAccount')">⚙ AKUN</button>
+      <button class="btn btn-secondary" style="flex:1;font-size:5px;" onclick="doLogout()">LOGOUT</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════ SCREEN: ACCOUNT SETTINGS ══════════════════ -->
+  <div class="screen" id="screenAccount">
+    <div class="logo-wrap" style="margin-bottom:12px;">
+      <div class="logo-title" style="font-size:12px;">AKUN</div>
+    </div>
+    <div class="card" style="max-width:420px;width:calc(100% - 32px);">
+      <div class="card-title">⚙ PENGATURAN AKUN</div>
+      <div class="settings-row">
+        <div class="settings-label">EMAIL</div>
+        <div class="settings-val" id="accEmail" style="font-size:5px;"></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">NAMA TAMPILAN</div>
+        <div class="settings-val" id="accDisplayName" style="font-size:6px;"></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">UID</div>
+        <div class="settings-val" id="accUID" style="font-size:4px;color:#334433;"></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">TIPE AKUN</div>
+        <div class="settings-val" id="accType" style="font-size:5px;"></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">BERGABUNG SEJAK</div>
+        <div class="settings-val" id="accCreated" style="font-size:5px;"></div>
+      </div>
+      <div style="margin-top:16px;">
+        <div class="msg" id="accMsg"></div>
+        <button class="btn btn-secondary" onclick="showChangePassword()">🔑 GANTI KATA SANDI</button>
+        <div id="changePwWrap" style="display:none;margin-top:10px;">
+          <div class="field">
+            <label>SANDI BARU</label>
+            <input type="password" id="newPass" placeholder="min 6 karakter"/>
+          </div>
+          <button class="btn btn-primary" onclick="doChangePassword()">✦ SIMPAN SANDI</button>
+        </div>
+        <button class="btn btn-danger" style="margin-top:8px;" onclick="confirmDeleteAccount()">⚠ HAPUS AKUN</button>
+      </div>
+    </div>
+    <div style="margin-top:12px;width:calc(100% - 32px);max-width:420px;">
+      <button class="btn btn-secondary" onclick="showScreen('screenCharSelect')">◀ KEMBALI</button>
+    </div>
+  </div>
+
+</div><!-- /ui -->
+
+<!-- Firebase SDK (module) -->
+<script type="module">
+import { initializeApp }                        from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { getDatabase, ref, set, get, onValue, remove }
+  from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+import {
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  signOut, onAuthStateChanged, updateProfile, updatePassword,
+  deleteUser, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup,
+  signInAnonymously
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+// ══════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey:            "AIzaSyC01ssDQCYgDiv28h_aPFqo5-rkylMUqZg",
+  authDomain:        "mmogame-e4035.firebaseapp.com",
+  databaseURL:       "https://mmogame-e4035-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "mmogame-e4035",
+  storageBucket:     "mmogame-e4035.firebasestorage.app",
+  messagingSenderId: "967874774427",
+  appId:             "1:967874774427:web:6266749e28f8cfdff70d3e",
+  measurementId:     "G-MKM50NDL2B"
+};
+
+const app  = initializeApp(firebaseConfig);
+const db   = getDatabase(app);
+const auth = getAuth(app);
+const gProvider = new GoogleAuthProvider();
+
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+let currentUser = null;
+let characters  = [];   // up to 3 slots
+let selectedSlot = null;
+let otherPlayers = {};
+
+// ══════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════
+function showLoading(on){ document.getElementById('loadingOverlay').classList.toggle('active', on); }
+
+function toast(msg, dur=2800){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+function setMsg(id, text, type='error'){
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'msg ' + type;
+}
+function clearMsg(id){ const el = document.getElementById(id); el.textContent=''; el.className='msg'; }
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id)?.classList.add('active');
+}
+
+function formatDate(ts){
+  if (!ts) return '—';
+  const d = new Date(typeof ts === 'string' ? ts : ts);
+  return d.toLocaleDateString('id-ID',{year:'2-digit',month:'short',day:'numeric'});
+}
+
+function fmtErr(code){
+  const map = {
+    'auth/email-already-in-use':    'Email sudah digunakan.',
+    'auth/invalid-email':           'Format email tidak valid.',
+    'auth/weak-password':           'Kata sandi minimal 6 karakter.',
+    'auth/user-not-found':          'Akun tidak ditemukan.',
+    'auth/wrong-password':          'Kata sandi salah.',
+    'auth/invalid-credential':      'Email atau kata sandi salah.',
+    'auth/too-many-requests':       'Terlalu banyak percobaan. Coba lagi nanti.',
+    'auth/network-request-failed':  'Koneksi gagal. Periksa internet.',
+    'auth/requires-recent-login':   'Silakan login ulang untuk aksi ini.',
+    'auth/popup-closed-by-user':    'Login Google dibatalkan.',
+  };
+  return map[code] || 'Error: ' + code;
+}
+
+// ══════════════════════════════════════════════════════
+// BACKGROUND CANVAS (pixel art village silhouette)
+// ══════════════════════════════════════════════════════
+(function initBg(){
+  const c = document.getElementById('bgCanvas');
+  const cx = c.getContext('2d');
+  let t = 0, stars = [], W, H;
+
+  function resize(){
+    W = c.width  = window.innerWidth;
+    H = c.height = window.innerHeight;
+    stars = Array.from({length:80},()=>({
+      x: Math.random()*W, y: Math.random()*H*0.6,
+      s: Math.random()<0.3?2:1, b: Math.random()
+    }));
+  }
+  resize(); window.addEventListener('resize', resize);
+
+  // Simple repeating mountains / village silhouette
+  function drawBg(){
+    cx.clearRect(0,0,W,H);
+    // Sky gradient
+    const g = cx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#010806');
+    g.addColorStop(0.5,'#020d0a');
+    g.addColorStop(1,'#030e08');
+    cx.fillStyle=g; cx.fillRect(0,0,W,H);
+
+    // Stars
+    for(const s of stars){
+      const flicker = 0.5 + 0.5*Math.sin(t*0.04 + s.b*10);
+      cx.globalAlpha = flicker*(s.s===2?0.6:0.3);
+      cx.fillStyle='#88ffcc';
+      cx.fillRect(Math.floor(s.x),Math.floor(s.y),s.s,s.s);
+    }
+    cx.globalAlpha=1;
+
+    // Moon
+    const mx=W*0.82, my=H*0.12, mr=Math.min(W,H)*0.05;
+    cx.fillStyle='#9dffd8'; cx.beginPath();
+    cx.arc(mx,my,mr,0,Math.PI*2); cx.fill();
+    cx.fillStyle='#020d0a'; cx.beginPath();
+    cx.arc(mx+mr*0.25,my-mr*0.1,mr*0.82,0,Math.PI*2); cx.fill();
+
+    // Far mountains
+    cx.fillStyle='#050f09';
+    cx.beginPath(); cx.moveTo(0,H*0.65);
+    for(let x=0;x<=W;x+=W/8){
+      cx.lineTo(x, H*0.45 + Math.sin(x/W*Math.PI*2.5)*H*0.12);
+    }
+    cx.lineTo(W,H); cx.lineTo(0,H); cx.closePath(); cx.fill();
+
+    // Near mountains
+    cx.fillStyle='#030a05';
+    cx.beginPath(); cx.moveTo(0,H*0.72);
+    for(let x=0;x<=W;x+=W/6){
+      cx.lineTo(x, H*0.56 + Math.sin(x/W*Math.PI*3.1+1)*H*0.10);
+    }
+    cx.lineTo(W,H); cx.lineTo(0,H); cx.closePath(); cx.fill();
+
+    // Village silhouette (houses)
+    cx.fillStyle='#020806';
+    const houses=[.08,.18,.27,.36,.48,.58,.68,.78,.88,.95];
+    for(let i=0;i<houses.length;i++){
+      const hx=W*houses[i];
+      const hw=W*(0.045+Math.sin(i*3.7)*0.015);
+      const hh=H*(0.09+Math.sin(i*2.1)*0.04);
+      const hy=H*0.72-hh;
+      cx.fillRect(hx-hw/2, hy, hw, hh+H*0.1);
+      // Roof
+      cx.beginPath(); cx.moveTo(hx-hw/2-4,hy); cx.lineTo(hx,hy-hh*0.5);
+      cx.lineTo(hx+hw/2+4,hy); cx.closePath(); cx.fill();
+      // Glowing window
+      if(Math.sin(t*0.02+i)>-0.3){
+        const wg=cx.createRadialGradient(hx,hy+hh*0.4,0,hx,hy+hh*0.4,hw*0.4);
+        wg.addColorStop(0,'rgba(136,255,180,0.12)');
+        wg.addColorStop(1,'transparent');
+        cx.fillStyle=wg;
+        cx.fillRect(hx-hw/2,hy,hw,hh);
+        cx.fillStyle='rgba(136,255,150,0.5)';
+        cx.fillRect(hx-4,hy+hh*0.35,8,7);
+      }
+    }
+
+    // Ground
+    cx.fillStyle='#010603';
+    cx.fillRect(0,H*0.78,W,H*0.22);
+
+    // Fog
+    const fg=cx.createLinearGradient(0,H*0.65,0,H*0.82);
+    fg.addColorStop(0,'transparent');
+    fg.addColorStop(0.5,'rgba(8,30,16,0.25)');
+    fg.addColorStop(1,'transparent');
+    cx.fillStyle=fg; cx.fillRect(0,H*0.65,W,H*0.2);
+
+    t++;
+    requestAnimationFrame(drawBg);
+  }
+  drawBg();
+})();
+
+// Cursor
+const cursorEl = document.getElementById('cursor');
+window.addEventListener('mousemove', e => {
+  cursorEl.style.left = e.clientX+'px';
+  cursorEl.style.top  = e.clientY+'px';
+});
+
+// ══════════════════════════════════════════════════════
+// PIXEL CHARACTER RENDERER (mini, for slots)
+// ══════════════════════════════════════════════════════
+function drawMiniChar(canvas, cfg){
+  const c = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0,0,W,H);
+  const cx = W/2, cy = H*0.78;
+  const isFemale = cfg.gender === 'female';
+
+  function blend(hex, amt){
+    const n=parseInt(hex.replace('#',''),16);
+    const r=Math.min(255,Math.max(0,((n>>16)&255)+amt));
+    const g=Math.min(255,Math.max(0,((n>>8)&255)+amt));
+    const b=Math.min(255,Math.max(0,(n&255)+amt));
+    return '#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');
+  }
+
+  const skin = cfg.skinTone||'#e8a87c';
+  const hair = cfg.hairColor||'#6b3a1a';
+  const outfit= cfg.outfitColor||'#3a6a2a';
+  const shoe  = cfg.shoeColor||'#333';
+  const eye   = cfg.eyeColor||'#44cc44';
+
+  const bw = isFemale?9:11, bh=isFemale?10:9;
+  const legH=6, shoeH=2;
+  const footY = cy;
+  const legTopY = footY - shoeH - legH;
+  const bTop = legTopY - bh;
+  const headSz = isFemale?8:9;
+  const headY = bTop - headSz;
+
+  // shoes
+  c.fillStyle=shoe;
+  c.fillRect(Math.floor(cx-bw/2)-1, footY-shoeH, Math.floor(bw/2)+1, shoeH);
+  c.fillRect(Math.floor(cx), footY-shoeH, Math.floor(bw/2)+1, shoeH);
+  // legs
+  c.fillStyle=blend(outfit,-50);
+  c.fillRect(Math.floor(cx-bw/2), legTopY, Math.floor(bw/2)-1, legH);
+  c.fillRect(Math.floor(cx)+1, legTopY, Math.floor(bw/2)-1, legH);
+  // body
+  c.fillStyle=outfit;
+  c.fillRect(Math.floor(cx-bw/2), bTop, bw, bh);
+  c.fillStyle=blend(outfit,25); c.fillRect(Math.floor(cx-bw/2),bTop,bw,2);
+  c.fillStyle=blend(outfit,-25); c.fillRect(Math.floor(cx-bw/2),bTop+bh-1,bw,1);
+  // buttons
+  c.fillStyle='#ddaa33';
+  c.fillRect(Math.floor(cx),bTop+2,1,1); c.fillRect(Math.floor(cx),bTop+4,1,1);
+  // arms
+  c.fillStyle=outfit;
+  c.fillRect(Math.floor(cx-bw/2)-3,bTop,3,bh-2);
+  c.fillRect(Math.floor(cx+bw/2),bTop,3,bh-2);
+  c.fillStyle=skin;
+  c.fillRect(Math.floor(cx-bw/2)-3,bTop+bh-3,3,3);
+  c.fillRect(Math.floor(cx+bw/2),bTop+bh-3,3,3);
+  // neck
+  c.fillStyle=skin; c.fillRect(Math.floor(cx)-2,bTop-2,4,3);
+  // head
+  c.fillStyle=skin; c.fillRect(Math.floor(cx-headSz/2),headY,headSz,headSz);
+  c.fillStyle=blend(skin,-15);
+  c.fillRect(Math.floor(cx+headSz/2)-2,headY+1,2,headSz-2);
+  c.fillRect(Math.floor(cx-headSz/2),headY+headSz-2,headSz,2);
+  // eyes
+  c.fillStyle='#111';
+  c.fillRect(Math.floor(cx-headSz/2)+1,headY+3,2,2);
+  c.fillRect(Math.floor(cx+1),headY+3,2,2);
+  c.fillStyle=eye;
+  c.fillRect(Math.floor(cx-headSz/2)+2,headY+4,1,1);
+  c.fillRect(Math.floor(cx+2),headY+4,1,1);
+  // hair
+  c.fillStyle=hair;
+  c.fillRect(Math.floor(cx-headSz/2),headY,headSz,3);
+  c.fillRect(Math.floor(cx-headSz/2)-2,headY+1,2,6);
+  c.fillRect(Math.floor(cx+headSz/2),headY+1,2,6);
+  if(isFemale){
+    c.fillRect(Math.floor(cx-headSz/2)-2,headY+5,2,5);
+    c.fillRect(Math.floor(cx+headSz/2),headY+5,2,5);
+  }
+  // female details
+  if(isFemale){
+    c.fillStyle=blend(outfit,20);
+    c.fillRect(Math.floor(cx-bw/2),bTop+bh-3,bw,3);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// FIREBASE — CHARACTERS (per UID, up to 3 slots)
+// ══════════════════════════════════════════════════════
+async function loadCharacters(uid){
+  try {
+    const snap = await get(ref(db, `accounts/${uid}/characters`));
+    characters = snap.val() ? Object.values(snap.val()) : [];
+    characters = characters.filter(Boolean);
+  } catch(e){
+    characters = [];
+    console.warn('[Firebase] loadCharacters failed:', e);
+  }
+}
+
+async function saveCharacter(uid, slotIdx, charData){
+  await set(ref(db, `accounts/${uid}/characters/${slotIdx}`), {
+    ...charData,
+    slot: slotIdx,
+    lastSaved: Date.now(),
+  });
+}
+
+async function deleteCharacter(uid, slotIdx){
+  await remove(ref(db, `accounts/${uid}/characters/${slotIdx}`));
+}
+
+async function saveAccountMeta(uid, meta){
+  await set(ref(db, `accounts/${uid}/meta`), {
+    ...meta,
+    lastLogin: Date.now(),
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// ONLINE PLAYERS LISTENER
+// ══════════════════════════════════════════════════════
+function listenOnlinePlayers(){
+  onValue(ref(db, 'village/players'), snap => {
+    const all = snap.val() || {};
+    const now = Date.now();
+    otherPlayers = {};
+    let count = 0;
+    for(const [id, data] of Object.entries(all)){
+      if(data?.lastSeen && (now - data.lastSeen) < 30000 && data?.online !== false){
+        otherPlayers[id] = data;
+        count++;
+      }
+    }
+    // Update online count in title
+    const ocEl = document.getElementById('onlineCount');
+    if(ocEl) ocEl.textContent = count > 0 ? `⬡ ${count} PEMAIN ONLINE DI DESA` : '';
+    // Refresh online strip if on char select
+    renderOnlineStrip(count);
+  });
+}
+
+function renderOnlineStrip(count){
+  const sec = document.getElementById('onlineSection');
+  const strip = document.getElementById('onlineStrip');
+  const countBar = document.getElementById('onlineCountBar');
+  if(!sec||!strip) return;
+  sec.style.display = count>0 ? 'block' : 'none';
+  if(countBar) countBar.textContent = `${count} PEMAIN SEDANG ONLINE`;
+  strip.innerHTML = '';
+  let i=0;
+  for(const [id, p] of Object.entries(otherPlayers)){
+    if(i>=8) break;
+    const wrap = document.createElement('div');
+    wrap.className='online-player';
+    const cv = document.createElement('canvas');
+    cv.width=30; cv.height=40;
+    drawMiniChar(cv, {
+      gender: p.gender||'male',
+      skinTone: p.skinTone||'#e8a87c',
+      hairColor: p.hairColor||'#6b3a1a',
+      outfitColor: p.outfitColor||'#3a6a2a',
+      shoeColor: p.shoeColor||'#333',
+      eyeColor: p.eyeColor||'#44cc44',
+    });
+    const nm = document.createElement('span');
+    nm.textContent = (p.name||'???').slice(0,8);
+    wrap.append(cv, nm); strip.append(wrap);
+    i++;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// RENDER CHARACTER SELECT SCREEN
+// ══════════════════════════════════════════════════════
+function renderCharSelect(){
+  const grid = document.getElementById('charGrid');
+  const subtitle = document.getElementById('selectSubtitle');
+  if(!grid) return;
+
+  subtitle.textContent = `AKUN: ${currentUser?.email||currentUser?.displayName||'TAMU'}`;
+  grid.innerHTML = '';
+
+  const MAX_SLOTS = 3;
+  // Fill slots
+  for(let i=0; i<MAX_SLOTS; i++){
+    const char = characters.find(c => c?.slot === i) || null;
+    const card = document.createElement('div');
+    card.className = 'char-card' + (char ? '' : ' empty');
+
+    if(char){
+      // Character canvas
+      const cv = document.createElement('canvas');
+      cv.className='char-avatar'; cv.width=44; cv.height=56;
+      drawMiniChar(cv, char);
+
+      // Info
+      const info = document.createElement('div');
+      info.className='char-info';
+      const lastSaved = char.lastSaved ? formatDate(char.lastSaved) : '—';
+      const gender = char.gender==='female'?'♀ PEREMPUAN':'♂ LAKI-LAKI';
+      const level = char.level||1;
+      info.innerHTML = `
+        <div class="char-name">${char.name||'KARAKTER'}</div>
+        <div class="char-meta">
+          ${gender} · LVL ${level}<br>
+          ⚔ ${char.equipped?.weapon||'—'} · 💰 ${char.gold||0}<br>
+          ❤ HP ${char.hp||100}/${char.maxHp||100}<br>
+          <span style="font-size:4px;color:#334433;">Disimpan: ${lastSaved}</span>
+        </div>`;
+
+      // Actions
+      const acts = document.createElement('div');
+      acts.className='char-action';
+      const btnPlay = document.createElement('button');
+      btnPlay.className='btn-sm'; btnPlay.textContent='▶ MAIN';
+      btnPlay.onclick = (e) => { e.stopPropagation(); startWithChar(char, i); };
+      const btnDel = document.createElement('button');
+      btnDel.className='btn-sm del'; btnDel.textContent='✕';
+      btnDel.onclick = (e) => { e.stopPropagation(); confirmDeleteChar(i, char.name); };
+      acts.append(btnPlay, btnDel);
+
+      card.append(cv, info, acts);
+      card.onclick = () => startWithChar(char, i);
+    } else {
+      card.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0;">
+          <div style="font-size:20px;color:#1a3322;">✦</div>
+          <div class="char-slot-empty">SLOT ${i+1} — BUAT BARU</div>
+        </div>`;
+      card.onclick = () => createNewChar(i);
+    }
+
+    grid.append(card);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// ACTIONS
+// ══════════════════════════════════════════════════════
+function startWithChar(char, slotIdx){
+  // Store in localStorage for karakter.html / desa.html
+  localStorage.setItem('reborn_charConfig', JSON.stringify(char));
+  localStorage.setItem('reborn_inventory', JSON.stringify({
+    gold: char.gold||120,
+    equipped: char.equipped||{weapon:'rusty_sword',body:'cloth_armor',head:null,feet:null,ring:null,neck:null},
+    items: char.items||[],
+  }));
+  localStorage.setItem('reborn_uid', currentUser?.uid||'guest');
+  localStorage.setItem('reborn_slot', String(slotIdx));
+  localStorage.setItem('reborn_session_id', (currentUser?.uid||'guest') + '_slot' + slotIdx);
+  toast('Memulai petualangan...', 1200);
+  setTimeout(() => { window.location.href = 'desa.html'; }, 1000);
+}
+
+function createNewChar(slotIdx){
+  localStorage.setItem('reborn_new_char_slot', String(slotIdx));
+  localStorage.setItem('reborn_uid', currentUser?.uid||'guest');
+  localStorage.setItem('reborn_session_id', (currentUser?.uid||'guest') + '_slot' + slotIdx);
+  window.location.href = 'karakter.html?slot=' + slotIdx;
+}
+
+function confirmDeleteChar(slotIdx, name){
+  if(!confirm(`Hapus karakter "${name||'ini'}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+  showLoading(true);
+  deleteCharacter(currentUser.uid, slotIdx).then(() => {
+    characters = characters.filter(c => c?.slot !== slotIdx);
+    renderCharSelect();
+    toast('Karakter dihapus.');
+  }).catch(e => {
+    toast('Gagal hapus: ' + e.message);
+  }).finally(() => showLoading(false));
+}
+
+function guestPlay(){
+  showLoading(true);
+  signInAnonymously(auth).then(cred => {
+    // Guest gets one slot, auto-redirect to char creation
+    currentUser = cred.user;
+    characters = [];
+    localStorage.setItem('reborn_uid', currentUser.uid);
+    localStorage.setItem('reborn_session_id', currentUser.uid + '_slot0');
+    localStorage.setItem('reborn_new_char_slot', '0');
+    window.location.href = 'karakter.html?slot=0&guest=1';
+  }).catch(e => {
+    toast('Gagal masuk sebagai tamu: ' + fmtErr(e.code));
+  }).finally(() => showLoading(false));
+}
+
+// ══════════════════════════════════════════════════════
+// AUTH ACTIONS
+// ══════════════════════════════════════════════════════
+window.doLogin = async function(){
+  clearMsg('loginMsg');
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  if(!email||!pass){ setMsg('loginMsg','Isi email dan kata sandi.'); return; }
+  showLoading(true);
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+    // onAuthStateChanged will handle the rest
+  } catch(e){
+    setMsg('loginMsg', fmtErr(e.code));
+    showLoading(false);
+  }
+};
+
+window.doRegister = async function(){
+  clearMsg('registerMsg');
+  const name  = document.getElementById('regDisplayName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const pass  = document.getElementById('regPass').value;
+  const pass2 = document.getElementById('regPass2').value;
+  if(!name)  { setMsg('registerMsg','Isi nama tampilan.'); return; }
+  if(!email) { setMsg('registerMsg','Isi email.'); return; }
+  if(!pass)  { setMsg('registerMsg','Isi kata sandi.'); return; }
+  if(pass !== pass2){ setMsg('registerMsg','Konfirmasi sandi tidak sama.'); return; }
+  if(pass.length<6) { setMsg('registerMsg','Sandi minimal 6 karakter.'); return; }
+  showLoading(true);
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    await updateProfile(cred.user, { displayName: name });
+    await saveAccountMeta(cred.user.uid, { email, displayName: name, createdAt: Date.now() });
+  } catch(e){
+    setMsg('registerMsg', fmtErr(e.code));
+    showLoading(false);
+  }
+};
+
+window.doGoogleLogin = async function(){
+  showLoading(true);
+  try {
+    const cred = await signInWithPopup(auth, gProvider);
+    await saveAccountMeta(cred.user.uid, {
+      email: cred.user.email,
+      displayName: cred.user.displayName,
+      createdAt: cred.user.metadata.creationTime,
+    });
+  } catch(e){
+    toast(fmtErr(e.code));
+    showLoading(false);
+  }
+};
+
+window.doForgotPassword = async function(){
+  const email = document.getElementById('loginEmail').value.trim();
+  if(!email){ setMsg('loginMsg','Isi email terlebih dulu.','info'); return; }
+  showLoading(true);
+  try {
+    await sendPasswordResetEmail(auth, email);
+    setMsg('loginMsg','Email reset dikirim! Cek inbox kamu.','success');
+  } catch(e){
+    setMsg('loginMsg', fmtErr(e.code));
+  } finally { showLoading(false); }
+};
+
+window.doLogout = async function(){
+  showLoading(true);
+  try {
+    await signOut(auth);
+    localStorage.removeItem('reborn_charConfig');
+    localStorage.removeItem('reborn_inventory');
+    localStorage.removeItem('reborn_uid');
+    localStorage.removeItem('reborn_slot');
+    currentUser = null; characters = [];
+    document.getElementById('userBar').classList.remove('active');
+    showScreen('screenTitle');
+    toast('Berhasil logout.');
+  } catch(e){
+    toast('Logout gagal: ' + e.message);
+  } finally { showLoading(false); }
+};
+
+window.showChangePassword = function(){
+  const w = document.getElementById('changePwWrap');
+  w.style.display = w.style.display==='none' ? 'block' : 'none';
+};
+
+window.doChangePassword = async function(){
+  clearMsg('accMsg');
+  const np = document.getElementById('newPass').value;
+  if(np.length<6){ setMsg('accMsg','Sandi minimal 6 karakter.'); return; }
+  showLoading(true);
+  try {
+    await updatePassword(currentUser, np);
+    setMsg('accMsg','Kata sandi berhasil diubah!','success');
+    document.getElementById('changePwWrap').style.display='none';
+  } catch(e){
+    setMsg('accMsg', fmtErr(e.code));
+  } finally { showLoading(false); }
+};
+
+window.confirmDeleteAccount = function(){
+  if(!confirm('HAPUS AKUN? Semua karakter dan data akan hilang permanen!')) return;
+  if(!confirm('Yakin BENAR-BENAR ingin menghapus akun ini?')) return;
+  showLoading(true);
+  remove(ref(db, `accounts/${currentUser.uid}`)).then(() => {
+    return deleteUser(currentUser);
+  }).then(() => {
+    toast('Akun dihapus.', 2000);
+    setTimeout(() => { localStorage.clear(); window.location.reload(); }, 2000);
+  }).catch(e => {
+    setMsg('accMsg', fmtErr(e.code));
+    showLoading(false);
+  });
+};
+
+// ══════════════════════════════════════════════════════
+// ACCOUNT SETTINGS SCREEN
+// ══════════════════════════════════════════════════════
+window.showScreen = function(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const el = document.getElementById(id);
+  if(el) el.classList.add('active');
+  if(id==='screenAccount' && currentUser){
+    document.getElementById('accEmail').textContent       = currentUser.email||'(Google/Tamu)';
+    document.getElementById('accDisplayName').textContent = currentUser.displayName||'—';
+    document.getElementById('accUID').textContent         = currentUser.uid;
+    document.getElementById('accType').textContent        = currentUser.isAnonymous
+      ? '👤 TAMU' : currentUser.providerData?.[0]?.providerId==='google.com'
+      ? '🌐 GOOGLE' : '📧 EMAIL';
+    document.getElementById('accCreated').textContent = formatDate(currentUser.metadata?.creationTime);
+  }
+};
+
+// ══════════════════════════════════════════════════════
+// AUTH STATE OBSERVER
+// ══════════════════════════════════════════════════════
+onAuthStateChanged(auth, async (user) => {
+  showLoading(true);
+  if(user){
+    currentUser = user;
+
+    // Update top bar
+    const bar = document.getElementById('userBar');
+    bar.classList.add('active');
+    document.getElementById('barEmail').textContent = user.email||user.displayName||'TAMU';
+    document.getElementById('barSession').textContent = 'UID: ' + user.uid.slice(0,12) + '...';
+
+    // Load characters from Firebase
+    await loadCharacters(user.uid);
+
+    // If coming back from karakter.html with a new character to save
+    const newCharJson = localStorage.getItem('reborn_save_new_char');
+    const newCharSlot = localStorage.getItem('reborn_save_new_char_slot');
+    if(newCharJson && newCharSlot !== null){
+      try {
+        const newChar = JSON.parse(newCharJson);
+        newChar.slot = parseInt(newCharSlot);
+        await saveCharacter(user.uid, newChar.slot, newChar);
+        characters = characters.filter(c => c?.slot !== newChar.slot);
+        characters.push(newChar);
+        toast('Karakter disimpan ke Firebase!');
+      } catch(e){ console.warn('Failed to save new char:', e); }
+      localStorage.removeItem('reborn_save_new_char');
+      localStorage.removeItem('reborn_save_new_char_slot');
+    }
+
+    // If coming back from desa.html with updated state
+    const stateJson = localStorage.getItem('reborn_save_state');
+    const stateSlot = localStorage.getItem('reborn_save_state_slot');
+    if(stateJson && stateSlot !== null){
+      try {
+        const state = JSON.parse(stateJson);
+        const slot = parseInt(stateSlot);
+        const existing = characters.find(c => c?.slot === slot);
+        if(existing){
+          Object.assign(existing, state);
+          await saveCharacter(user.uid, slot, existing);
+          toast('Progress disimpan!');
+        }
+      } catch(e){ console.warn('Failed to save state:', e); }
+      localStorage.removeItem('reborn_save_state');
+      localStorage.removeItem('reborn_save_state_slot');
+    }
+
+    renderCharSelect();
+    showScreen('screenCharSelect');
+    listenOnlinePlayers();
+  } else {
+    currentUser = null;
+    document.getElementById('userBar').classList.remove('active');
+    showScreen('screenTitle');
+    listenOnlinePlayers();
+  }
+  showLoading(false);
+});
+
+// ══════════════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ══════════════════════════════════════════════════════
+window.addEventListener('keydown', e => {
+  if(e.key==='Enter'){
+    const active = document.querySelector('.screen.active');
+    if(active?.id==='screenLogin') window.doLogin();
+    else if(active?.id==='screenRegister') window.doRegister();
+  }
+  if(e.key==='Escape'){
+    const active = document.querySelector('.screen.active');
+    if(active?.id==='screenAccount') showScreen('screenCharSelect');
+    else if(active?.id==='screenCharSelect'){ /* nothing */ }
+    else showScreen('screenTitle');
+  }
+});
+
+console.log('[REBORN Index] Firebase Auth initialized.');
+</script>
+</body>
+</html>
