@@ -251,7 +251,17 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;}
 // ===================== CORE =====================
 const canvas=document.getElementById('gameCanvas'),ctx=canvas.getContext('2d');
 let lastTime=0,deltaTime=0;
-function resize(){const s=Math.min(window.innerWidth/480,window.innerHeight/320);canvas.width=480;canvas.height=320;canvas.style.width=Math.floor(480*s)+'px';canvas.style.height=Math.floor(320*s)+'px';}
+function resize(){
+  const vw=window.innerWidth, vh=window.innerHeight;
+  // Isi penuh layar (letterbox horizontal jika perlu)
+  const s=Math.min(vw/480, vh/320);
+  canvas.width=480; canvas.height=320;
+  canvas.style.width=Math.floor(480*s)+'px';
+  canvas.style.height=Math.floor(320*s)+'px';
+  // Pastikan gameContainer juga penuh
+  const gc=document.getElementById('gameContainer');
+  if(gc){gc.style.width=vw+'px';gc.style.height=vh+'px';}
+}
 resize();window.addEventListener('resize',resize);
 const cursorEl=document.getElementById('cursor');
 window.addEventListener('mousemove',e=>{cursorEl.style.left=e.clientX+'px';cursorEl.style.top=e.clientY+'px';});
@@ -1368,10 +1378,10 @@ const voidLines=[{text:"Kegelapan...",delay:30,dur:100},{text:"Keheningan...",de
 let voidTextAlpha={},soulTrails=[],lightBurst=0;
 function updateVoid(){voidTimer++;voidAlpha=clamp(voidTimer/40,0,1);if(voidTimer%3===0&&voidTimer>60){soulTrails.push({x:Math.random()*480,y:330,vy:-(1+Math.random()*2),life:80+Math.random()*60,maxLife:140,color:`hsl(${160+Math.random()*40},80%,${60+Math.random()*20}%)`});}soulTrails=soulTrails.filter(s=>s.life>0);for(let s of soulTrails){s.y+=s.vy;s.x+=Math.sin(voidTimer*.03+s.x)*.5;s.life--;}for(let i=0;i<voidLines.length;i++){const l=voidLines[i];if(voidTimer>l.delay){const e=voidTimer-l.delay;if(e<40)voidTextAlpha[i]=e/40;else if(e<l.dur)voidTextAlpha[i]=1;else if(e<l.dur+40)voidTextAlpha[i]=1-(e-l.dur)/40;else voidTextAlpha[i]=0;}}if(voidTimer>390)lightBurst=clamp((voidTimer-390)/50,0,1);if(voidTimer>470){scene=SCENES.REBORN;tick=0;}}
 function renderVoid(){ctx.globalAlpha=voidAlpha;drawRect(0,0,480,320,'#000008');drawStars(voidAlpha);for(let s of soulTrails){ctx.globalAlpha=(s.life/s.maxLife)*voidAlpha*.7;drawRect(Math.floor(s.x),Math.floor(s.y),1,4,s.color);}ctx.globalAlpha=1;if(voidTimer>200){const op=(Math.sin(voidTimer*.04)+1)*.5,oa=clamp((voidTimer-200)/80,0,1)*voidAlpha;const or2=8+op*4;ctx.globalAlpha=oa*.15;ctx.fillStyle='#88ffcc';ctx.beginPath();ctx.arc(240,160,or2*6,0,Math.PI*2);ctx.fill();ctx.globalAlpha=oa*.3;ctx.beginPath();ctx.arc(240,160,or2*2.5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=oa;ctx.fillStyle='#ccffee';ctx.beginPath();ctx.arc(240,160,or2,0,Math.PI*2);ctx.fill();}if(lightBurst>0){ctx.globalAlpha=lightBurst*voidAlpha*.8;const g=ctx.createRadialGradient(240,160,0,240,160,200);g.addColorStop(0,'#fff');g.addColorStop(.3,'#88ffcc');g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(0,0,480,320);}for(let i=0;i<voidLines.length;i++){if(voidTextAlpha[i]>0){ctx.globalAlpha=voidTextAlpha[i]*voidAlpha;const isLast=i===voidLines.length-1;pixelText(voidLines[i].text,240,260,isLast?12:8,isLast?'#fff':'#aaaacc','center');}}ctx.globalAlpha=1;}
-let rebornTimer=0,rebornAlpha=0;
+let rebornTimer=0,rebornAlpha=0,rebornDone=false;
 const rebornNarrative=[{text:'"Kau dipilih."',delay:20,y:80,size:7,color:'#ccffee'},{text:'"Dunia lain membutuhkanmu."',delay:100,y:105,size:6,color:'#aaddcc'},{text:'"Kau tidak membawa apa-apa."',delay:200,y:130,size:6,color:'#aaaacc'},{text:'"Hanya jiwa dan nalurimu."',delay:290,y:153,size:6,color:'#aaaacc'},{text:'"Bertahan. Berkembang."',delay:380,y:185,size:8,color:'#ffeeaa'},{text:'"Jadilah legenda."',delay:460,y:210,size:9,color:'#fff'}];
 let rebornTextAlpha={},rebornSoulX=240,rebornSoulY=-30;
-function updateReborn(){rebornTimer++;rebornAlpha=clamp(rebornTimer/30,0,1);if(rebornTimer>30){rebornSoulY=lerp(rebornSoulY,160,.015);rebornSoulX=240+Math.sin(rebornTimer*.04)*20;}for(let i=0;i<rebornNarrative.length;i++){const l=rebornNarrative[i];if(rebornTimer>l.delay)rebornTextAlpha[i]=clamp((rebornTimer-l.delay)/40,0,1);}if(rebornTimer===660)showCustomScreen();}
+function updateReborn(){rebornTimer++;rebornAlpha=clamp(rebornTimer/30,0,1);if(rebornTimer>30){rebornSoulY=lerp(rebornSoulY,160,.015);rebornSoulX=240+Math.sin(rebornTimer*.04)*20;}for(let i=0;i<rebornNarrative.length;i++){const l=rebornNarrative[i];if(rebornTimer>l.delay)rebornTextAlpha[i]=clamp((rebornTimer-l.delay)/40,0,1);}if(rebornTimer>=660&&!rebornDone){rebornDone=true;showCustomScreen();}}
 function renderReborn(){const fp=clamp((rebornTimer-30)/400,0,1);drawRect(0,0,480,320,lerpColor('#000010','#0a1a2a',fp));drawStars(rebornAlpha*(1-fp*.7));if(fp>.3){ctx.globalAlpha=clamp((fp-.3)/.7,0,1)*.6;const g=ctx.createLinearGradient(0,200,0,320);g.addColorStop(0,'transparent');g.addColorStop(1,'#2a5a1a');ctx.fillStyle=g;ctx.fillRect(0,0,480,320);ctx.globalAlpha=1;}if(rebornTimer>30){const pulse=(Math.sin(rebornTimer*.08)+1)*.5;ctx.globalAlpha=.1;ctx.fillStyle='#88ffcc';ctx.beginPath();ctx.arc(rebornSoulX,rebornSoulY,30+pulse*5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=.4;ctx.beginPath();ctx.arc(rebornSoulX,rebornSoulY,12+pulse*2,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;ctx.fillStyle='#ccffee';ctx.beginPath();ctx.arc(rebornSoulX,rebornSoulY,5,0,Math.PI*2);ctx.fill();}for(let i=0;i<rebornNarrative.length;i++){if(rebornTextAlpha[i]>0){const l=rebornNarrative[i];ctx.globalAlpha=rebornTextAlpha[i];pixelText(l.text,242,l.y+2,l.size,'#000033','center');pixelText(l.text,240,l.y,l.size,l.color,'center');}}ctx.globalAlpha=1;}
 
 
@@ -1469,6 +1479,16 @@ window.startVillageScene = function() {
   } else {
     // Dibuka tanpa parameter — jalankan death cinematic normal
     console.log('[karakter.html] Mode: death cinematic');
+
+    // TAP / KLIK untuk skip cinematic
+    function skipToCustom() {
+      if (!rebornDone) { rebornDone = true; showCustomScreen(); }
+    }
+    canvas.addEventListener('click', skipToCustom);
+    canvas.addEventListener('touchstart', function(e){
+      e.preventDefault(); skipToCustom();
+    }, {passive:false});
+
     initDeath();
     (function loop(ts) {
       const dt = Math.min((ts - (loop._last || ts)) / 1000, 0.05);
